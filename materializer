@@ -16,3 +16,5 @@ for package in "${pkg_list[@]}"; do
     # done
     rsync -aHlx --link-dest="../../../home/tom/Dokumente/test/.store/$package" /home/tom/Dokumente/test/.store/$package/ /var/deployments/126/ 2>/dev/null || :
 done
+
+mkdir -p /var/deployments/123/usr/local
