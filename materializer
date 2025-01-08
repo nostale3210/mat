@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -oue pipefail
+
+read -ra pkg_list <<< "$(cat ./.pkgs | tr "\n" " ")"
+
+for package in "${pkg_list[@]}"; do
+    # read -ra file_list <<< "$(find ".store/$package" -type f | tr "\n" " ")"
+    printf "Installing package $package...\n"
+    # for file in "${file_list[@]}"; do
+    #     root_path="$(dirname "$file" | cut -d/ -f3-)"
+    #     printf "\t$(basename "$file")\n"
+    #     mkdir -p "/var/deployments/123/$root_path" 2>/dev/null || :
+
+    #     # ln "$file" "/var/deployments/123/$(cut -d/ -f3- <<< "$file")" 2>/dev/null ||
+    #     #    cp -frax --updates=none "$file" "/var/deployments/123/$(cut -d/ -f3- <<< "$file")" 2>/dev/null || :
+    # done
+    rsync -aHlx --link-dest="../../../home/tom/Dokumente/test/.store/$package" /home/tom/Dokumente/test/.store/$package/ /var/deployments/126/ 2>/dev/null || :
+done

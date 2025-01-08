@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+set -oue pipefail
+
+if [[ -f ./.current && "$(cat ./.current)" != "" ]]; then
+    failed="$(cat ./.current)"
+    printf "Cleaning up $failed...\n"
+    rm -rf "./.store/${failed:?}"
+    echo "" > ./.current
+fi
+
+read -ra packages <<< "$(rpm -qa | tr "\n" " ")"
+for PACKAGE in "${packages[@]}"; do
+    printf "Storing $PACKAGE...\n"
+    if [[ ! -d "./.store/$PACKAGE" && "$PACKAGE" != "filesystem"* ]]; then
+        read -ra pkg_files <<< "$(rpm -ql "$PACKAGE" | grep -v ".build-id" | tr "\n" " ")"
+        echo "$PACKAGE" > ./.current
+        for rpm_file_path in "${pkg_files[@]}"; do
+            parent_dir="$(cut -d/ -f2 <<< "$rpm_file_path")"
+            file_path="$rpm_file_path"
+
+            if [[ "$parent_dir" =~ bin|lib|lib64 ]]; then
+                file_path="/usr$rpm_file_path"
+            elif [[ "$parent_dir" =~ usr|etc ]]; then
+                :
+            else
+                continue
+            fi
+
+            if [[ ! -d "$file_path" ]]; then
+                mkdir -p "./.store/$PACKAGE$(dirname "$file_path")" 2>/dev/null || :
+                ln "$file_path" "./.store/$PACKAGE$file_path" 2>/dev/null ||
+                    cp -fax --update=none "$file_path" "./.store/$PACKAGE$file_path" 2>/dev/null || :
+            fi
+        done
+        echo "" > ./.current
+        printf "\n"
+    else
+        printf "\tAlready present!\n\n"
+    fi
+done
