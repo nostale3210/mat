@@ -8,6 +8,7 @@ if [[ -f ./.current && "$(cat ./.current)" != "" ]]; then
     echo "" > ./.current
 fi
 
+rpm -qa | sort > .pkgs
 read -ra packages <<< "$(rpm -qa | tr "\n" " ")"
 for PACKAGE in "${packages[@]}"; do
     printf "Storing $PACKAGE...\n"
@@ -38,3 +39,5 @@ for PACKAGE in "${packages[@]}"; do
         printf "\tAlready present!\n\n"
     fi
 done
+custc="custom_content-$(tr -dc A-Za-z0-9 <<< /dev/urandom | head -c 5)" 
+echo "$custc" >> .pkgs
