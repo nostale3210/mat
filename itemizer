@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -oue pipefail
 
+deployment="$1"
+
 if [[ -f ./.current && "$(cat ./.current)" != "" ]]; then
     failed="$(cat ./.current)"
     printf "Cleaning up $failed...\n"
@@ -8,13 +10,14 @@ if [[ -f ./.current && "$(cat ./.current)" != "" ]]; then
     echo "" > ./.current
 fi
 
-rpm -qa | sort > .pkgs
+rpm -qa | sort > .pkgs"$deployment"
 read -ra packages <<< "$(rpm -qa | tr "\n" " ")"
 for PACKAGE in "${packages[@]}"; do
     printf "Storing $PACKAGE...\n"
     if [[ ! -d "./.store/$PACKAGE" && "$PACKAGE" != "filesystem"* ]]; then
         read -ra pkg_files <<< "$(rpm -ql "$PACKAGE" | grep -v ".build-id" | tr "\n" " ")"
         echo "$PACKAGE" > ./.current
+        mkdir -p "./.store/$PACKAGE"
         for rpm_file_path in "${pkg_files[@]}"; do
             parent_dir="$(cut -d/ -f2 <<< "$rpm_file_path")"
             file_path="$rpm_file_path"
@@ -34,10 +37,30 @@ for PACKAGE in "${packages[@]}"; do
             fi
         done
         echo "" > ./.current
-        printf "\n"
     else
         printf "\tAlready present!\n\n"
     fi
 done
-custc="custom_content-$(tr -dc A-Za-z0-9 <<< /dev/urandom | head -c 5)" 
-echo "$custc" >> .pkgs
+
+custom_content="custom_content-$(sha256sum <<< "$RANDOM" | cut -d' ' -f1)"
+printf "Storing $custom_content...\n"
+echo "$custom_content" > ./.current
+mkdir -p "./.store/$custom_content/usr"
+mkdir -p "./.store/$custom_content/etc"
+rsync -aHlx --link-dest=../../../custom_content/usr custom_content/usr/ ".store/$custom_content/usr/"
+rsync -aHlx --link-dest=../../../custom_content/etc custom_content/etc/ ".store/$custom_content/etc/"
+rm custom_content/usr/share/glib-2.0/schemas/*compiled*
+cp -l --parents /usr/share/glib-2.0/schemas/*compiled* custom_content
+
+read -ra bin_files <<< "$(find .store/$custom_content/usr/bin)"
+for file_path in "${bin_files[@]}"; do
+    chmod +x "$file_path"
+done
+
+read -ra libexec_files <<< "$(find .store/$custom_content/usr/libexec)"
+for file_path in "${libexec_files[@]}"; do
+    chmod +x "$file_path"
+done
+
+echo "$custom_content" >> .pkgs"$deployment"
+echo "" > ./.current
