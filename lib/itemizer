@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+set -oue pipefail
+
+if [[ -f ./.current && "$(cat ./.current)" != "" ]]; then
+    failed="$(cat ./.current)"
+    printf "Cleaning up $failed...\n"
+    rm -rf "./.store/${failed:?}"
+    echo "" > ./.current
+fi
+
+populate_store() {
+    deployment="$1"
+    rpm -qa | sort > .pkgs"$deployment"
+    read -ra packages <<< "$(rpm -qa | tr "\n" " ")"
+
+    for PACKAGE in "${packages[@]}"; do
+        printf "Storing $PACKAGE...\n"
+        if [[ ! -d "./.store/$PACKAGE" && "$PACKAGE" != "filesystem"* ]]; then
+            read -ra pkg_files <<< "$(rpm -ql "$PACKAGE" | grep -v ".build-id" | tr "\n" " ")"
+            echo "$PACKAGE" > ./.current
+            mkdir -p "./.store/$PACKAGE"
+
+            for rpm_file_path in "${pkg_files[@]}"; do
+                parent_dir="$(cut -d/ -f2 <<< "$rpm_file_path")"
+                file_path="$rpm_file_path"
+
+                if [[ "$parent_dir" =~ bin|lib|lib64 ]]; then
+                    file_path="/usr$rpm_file_path"
+                elif [[ "$parent_dir" =~ usr|etc ]]; then
+                    :
+                else
+                    continue
+                fi
+
+                if [[ ! -d "$file_path" ]]; then
+                    mkdir -p "./.store/$PACKAGE$(dirname "$file_path")" 2>/dev/null || :
+                    ln "$file_path" "./.store/$PACKAGE$file_path" 2>/dev/null ||
+                        cp -fax --update=none "$file_path" "./.store/$PACKAGE$file_path" 2>/dev/null || :
+                fi
+            done
+            echo "" > ./.current
+        else
+            printf "\tAlready present!\n\n"
+        fi
+    done
+}
+
+create_custom_content_pkg() {
+    deployment="$1"
+    custom_content="custom_content-$(sha256sum <<< "$RANDOM" | cut -d' ' -f1)"
+    printf "Storing $custom_content...\n"
+    echo "$custom_content" > ./.current
+    mkdir -p "./.store/$custom_content/usr"
+    mkdir -p "./.store/$custom_content/etc"
+
+    rsync -aHlx --link-dest=../../../custom_content/usr custom_content/usr/ ".store/$custom_content/usr/"
+    rsync -aHlx --link-dest=../../../custom_content/etc custom_content/etc/ ".store/$custom_content/etc/"
+    rm -f custom_content/usr/share/glib-2.0/schemas/*compiled* || :
+    cp -l --parents /usr/share/glib-2.0/schemas/*compiled* custom_content
+
+    read -ra bin_files <<< "$(find .store/$custom_content/usr/bin)"
+    for file_path in "${bin_files[@]}"; do
+        chmod +x "$file_path"
+    done
+
+    read -ra libexec_files <<< "$(find .store/$custom_content/usr/libexec)"
+    for file_path in "${libexec_files[@]}"; do
+        chmod +x "$file_path"
+    done
+
+    echo "$custom_content" >> .pkgs"$deployment"
+    echo "" > ./.current
+}

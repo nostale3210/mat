@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -oue pipefail
+
+generate_deployment() {
+    deployment="$1"
+
+    read -ra pkg_list <<< "$(cat ./.pkgs"$deployment" | tr "\n" " ")"
+
+    for package in "${pkg_list[@]}"; do
+        printf "Installing package $package...\n"
+        rsync -aHlx --link-dest="../../../home/tom/Dokumente/ald2/.store/$package" /home/tom/Dokumente/ald2/.store/$package/ /var/deployments/"$deployment"/ 2>/dev/null || :
+    done
+
+    mkdir -p /var/deployments/"$deployment"/usr/local
+    cp -rfa /etc /var/deployments/"$deployment"
+    rm /var/deployments/"$deployment"/etc/resolv.conf
+    ln -sf /run/systemd/resolve/stub-resolv.conf /var/deployments/"$deployment"/etc/resolv.conf
+}
+
+relabel_deployment() {
+    setfiles -r "/var/deployments/$1" "/var/deployments/$1/etc/selinux/targeted/contexts/files/file_contexts" "/var/deployments/$1" &>/dev/null
+}

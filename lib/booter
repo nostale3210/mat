@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -oue pipefail
+
+booty_bits() {
+    deployment="$1"
+    kver="$(cat ".pkgs$deployment" | grep kernel | cut -d- -f2- | sort -n | tail -n1)"
+    new_kernel="$(find .store/*"$kver"* -name vmlinuz -type f)"
+    new_init="$(find .store/*"$kver"* -name initramfs.img -type f)"
+
+    mkdir -p "/boot/$deployment"
+    cp -fa "$new_kernel" "/boot/$deployment" || :
+    cp -fa "$new_init" "/boot/$deployment" || :
+
+    cp -fa boot.conf "$deployment.conf"
+    cp -fa init.sh "$deployment.sh"
+    chmod +x "$deployment.sh"
+
+    sed -i "s@INSERT_DEPLOYMENT@$deployment@g" "$deployment.sh"
+    sed -i "s@ALD_PATH@/var/deployments@g" "$deployment.sh"
+    sed -i "s@INSERT_DEPLOYMENT@$deployment@g" "$deployment.conf"
+    sed -i "s@ALD_PATH@/var/deployments@g" "$deployment.conf"
+    
+    mv "$deployment.sh" "/var/deployments/init/$deployment.sh"
+    mv "$deployment.conf" "/boot/loader/entries/$deployment.conf"
+}
+
+relabel_boot() {
+    restorecon -RF /boot
+}

@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -oue pipefail
+
+for func in lib/*; do
+    if [[ -f "$func" ]]; then
+        source "$func"
+    fi
+done
+
+case "$1" in
+    unused)
+        get_unused_packages 
+        ;;
+    prune)
+        prune_unused_packages
+        ;;
+    create)
+        generate_deployment "$2"
+        ;;
+    relabel)
+        relabel_deployment "$2"
+        ;;
+    gen_boot)
+        booty_bits "$2"
+        ;;
+    label_boot)
+        relabel_boot
+        ;;
+    itemize)
+        populate_store "$2" 
+        create_custom_content_pkg "$2"
+        ;;
+    *)
+        echo default
+        ;;
+esac
+
