@@ -9,16 +9,17 @@ if [[ -f ./.current && "$(cat ./.current)" != "" ]]; then
 fi
 
 populate_store() {
-    deployment="$1"
-    rpm -qa | sort > .pkgs"$deployment"
+    if [[ ! -d /.mat/.store ]]; then mkdir -p /.mat/.store || (printf "Couldn't create store." && exit 1); fi
+
+    rpm -qa | sort > /.mat/.pkgs
     read -ra packages <<< "$(rpm -qa | tr "\n" " ")"
 
     for PACKAGE in "${packages[@]}"; do
         printf "Storing $PACKAGE...\n"
-        if [[ ! -d "./.store/$PACKAGE" && "$PACKAGE" != "filesystem"* ]]; then
+        if [[ ! -d "/.mat/.store/$PACKAGE" && "$PACKAGE" != "filesystem"* ]]; then
             read -ra pkg_files <<< "$(rpm -ql "$PACKAGE" | grep -v ".build-id" | tr "\n" " ")"
-            echo "$PACKAGE" > ./.current
-            mkdir -p "./.store/$PACKAGE"
+            echo "$PACKAGE" > /.mat/.current
+            mkdir -p "/.mat/.store/$PACKAGE"
 
             for rpm_file_path in "${pkg_files[@]}"; do
                 parent_dir="$(cut -d/ -f2 <<< "$rpm_file_path")"
@@ -33,12 +34,12 @@ populate_store() {
                 fi
 
                 if [[ ! -d "$file_path" ]]; then
-                    mkdir -p "./.store/$PACKAGE$(dirname "$file_path")" 2>/dev/null || :
-                    ln "$file_path" "./.store/$PACKAGE$file_path" 2>/dev/null ||
-                        cp -fax --update=none "$file_path" "./.store/$PACKAGE$file_path" 2>/dev/null || :
+                    mkdir -p "/.mat/.store/$PACKAGE$(dirname "$file_path")" 2>/dev/null || :
+                    ln "$file_path" "/.mat/.store/$PACKAGE$file_path" 2>/dev/null ||
+                        cp -fax --update=none "$file_path" "/.mat/.store/$PACKAGE$file_path" 2>/dev/null || :
                 fi
             done
-            echo "" > ./.current
+            echo "" > /.mat/.current
         else
             printf "\tAlready present!\n\n"
         fi
@@ -46,28 +47,27 @@ populate_store() {
 }
 
 create_custom_content_pkg() {
-    deployment="$1"
     custom_content="custom_content-$(sha256sum <<< "$RANDOM" | cut -d' ' -f1)"
     printf "Storing $custom_content...\n"
-    echo "$custom_content" > ./.current
-    mkdir -p "./.store/$custom_content/usr"
-    mkdir -p "./.store/$custom_content/etc"
+    echo "$custom_content" > /.mat/.current
+    mkdir -p "/.mat/.store/$custom_content/usr"
+    mkdir -p "/.mat/.store/$custom_content/etc"
 
-    rsync -aHlx --link-dest=../../../custom_content/usr custom_content/usr/ ".store/$custom_content/usr/"
-    rsync -aHlx --link-dest=../../../custom_content/etc custom_content/etc/ ".store/$custom_content/etc/"
-    rm -f custom_content/usr/share/glib-2.0/schemas/*compiled* || :
-    cp -l --parents /usr/share/glib-2.0/schemas/*compiled* custom_content
+    rsync -aHlx --link-dest=../../../custom_content/usr /.mat/custom_content/usr/ "/.mat/.store/$custom_content/usr/"
+    rsync -aHlx --link-dest=../../../custom_content/etc /.mat/custom_content/etc/ "/.mat/.store/$custom_content/etc/"
+    rm -f /.mat/custom_content/usr/share/glib-2.0/schemas/*compiled* || :
+    cp -l --parents /usr/share/glib-2.0/schemas/*compiled* /.mat/custom_content
 
-    read -ra bin_files <<< "$(find .store/$custom_content/usr/bin)"
+    read -ra bin_files <<< "$(find /.mat/.store/$custom_content/usr/bin)"
     for file_path in "${bin_files[@]}"; do
         chmod +x "$file_path"
     done
 
-    read -ra libexec_files <<< "$(find .store/$custom_content/usr/libexec)"
+    read -ra libexec_files <<< "$(find /.mat/.store/$custom_content/usr/libexec)"
     for file_path in "${libexec_files[@]}"; do
         chmod +x "$file_path"
     done
 
-    echo "$custom_content" >> .pkgs"$deployment"
-    echo "" > ./.current
+    echo "$custom_content" >> /.mat/.pkgs
+    echo "" > /.mat/.current
 }

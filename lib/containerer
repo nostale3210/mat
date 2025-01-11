@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+set -oue pipefail
+
+if [[ -f ./.current && "$(cat ./.current)" != "" ]]; then
+    failed="$(cat ./.current)"
+    printf "Cleaning up $failed...\n"
+    rm -rf "./.store/${failed:?}"
+    echo "" > ./.current
+fi
+
+pull_image() {
+    SOURCE_IMAGE="$1"
+
+    installed_image="$(podman inspect --format '{{.Digest}}' "$SOURCE_IMAGE")"
+    remote_image="$(skopeo inspect --format '{{.Digest}}' "docker://$SOURCE_IMAGE")"
+
+    if [[ "$installed_image" == "$remote_image" ]]; then
+        printf "Latest image already pulled.\n"
+        exit 0
+    else
+        podman pull "$SOURCE_IMAGE"
+    fi
+}
+
+update_store() {
+    SOURCE_IMAGE="$1"
+    deployment="$2"
+
+    podman create --name mat-tmp "$SOURCE_IMAGE"
+    CMOUNT="$(podman mount mat-tmp)"
+
+    cp -fa "$CMOUNT/.mat/.pkgs" "/.mat/.pkgs$deployment"
+    read -ra pkg_list <<< "$(cat /.mat/.pkgs"$deployment" | tr "\n" " ")"
+
+    for package in "${pkg_list[@]}"; do
+        if [[ ! -d "/.mat/.store/$PACKAGE" ]]; then
+            printf "Storing package $package...\n"
+            echo "$pkg" > /.mat/.current
+            rsync -aHlx "$CMOUNT/.mat/.store/$package" /.mat/.store/ 2>/dev/null || :
+            echo "" > /.mat/.current
+        fi
+    done
+
+    podman unmount mat-tmp
+    podman rm mat-tmp
+}

@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
 set -oue pipefail
 
-for func in lib/*; do
+for func in /usr/lib/mat/*; do
     if [[ -f "$func" ]]; then
         source "$func"
     fi
 done
+
+SRC_IMAGE="${SRC_IMAGE:-ghcr.io/nostale3210/timesinkc-cosmic-nvidia:latest}"
+DEPL_ID="$1"
 
 case "$1" in
     unused)
@@ -14,21 +17,27 @@ case "$1" in
     prune)
         prune_unused_packages
         ;;
-    create)
-        generate_deployment "$2"
+    materialize)
+        generate_deployment "$DEPL_ID"
         ;;
     relabel)
-        relabel_deployment "$2"
+        relabel_deployment "$DEPL_ID"
         ;;
     gen_boot)
-        booty_bits "$2"
+        booty_bits "$DEPL_ID"
         ;;
     label_boot)
         relabel_boot
         ;;
+    pull)
+        pull_image "$SRC_IMAGE"
+        ;;
+    update)
+        update_store "$SRC_IMAGE" "$DEPL_ID"
+        ;;
     itemize)
-        populate_store "$2" 
-        create_custom_content_pkg "$2"
+        populate_store "$DEPL_ID" 
+        create_custom_content_pkg "$DEPL_ID"
         ;;
     *)
         echo default
