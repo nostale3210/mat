@@ -8,7 +8,7 @@ for func in lib/*; do
 done
 
 PREFIX=""
-CONTAINER_URL="ghcr.io/nostale3210/mat-test:latest"
+CONTAINER_URL="localhost/mat"
 
 if [[ "$@" == *"--init"* ]]; then PREFIX="${@: -1}"; fi
 

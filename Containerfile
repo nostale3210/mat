@@ -1,4 +1,4 @@
-FROM ghcr.io/nostale3210/timesinkc-cosmic-nvidia:latest
+FROM ghcr.io/nostale3210/timesinkc-cosmic-nvidia:latest AS build
 
 COPY mat /usr/bin/mat
 COPY lib/ /usr/lib/mat/
@@ -16,3 +16,8 @@ RUN KVER="$(rpm -q kernel --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}')" && \
     -f "/.mat/custom_content/usr/lib/modules/$KVER/initramfs.img"
 
 RUN mat itemize
+
+
+FROM alpine:latest AS target
+
+COPY --from=build /.mat /.mat
