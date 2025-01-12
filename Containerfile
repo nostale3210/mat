@@ -1,4 +1,7 @@
-FROM ghcr.io/nostale3210/timesinkc-cosmic-nvidia:latest AS tmp
+FROM quay.io/fedora/fedora-bootc:latest AS tmp
+
+COPY --from=ghcr.io/nostale3210/timesinkc-cosmic-nvidia:latest /usr /
+COPY --from=ghcr.io/nostale3210/timesinkc-cosmic-nvidia:latest /etc /
 
 COPY mat /usr/bin/mat
 COPY lib/ /usr/lib/mat/
@@ -16,8 +19,6 @@ RUN KVER="$(rpm -q kernel --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}')" && \
     -f "/.mat/custom_content/usr/lib/modules/$KVER/initramfs.img"
 
 RUN mat itemize
-
-RUN rm -rf /var
 
 
 FROM alpine:latest AS tgt
