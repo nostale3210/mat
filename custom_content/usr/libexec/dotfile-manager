@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+
+set -oue pipefail
+
+VER=11
+VER_FILE=~/.config/ver-dot
+
+if [[ ! -f $VER_FILE ]]; then
+    touch $VER_FILE
+fi
+
+VER_RAN=$(cat $VER_FILE)
+
+if [[ $VER = "$VER_RAN" ]]; then
+    echo "Dotfile manager v$VER has already ran. Exiting..."
+    exit 0
+fi
+
+mkdir -p ~/.local/bin
+
+echo "Placing config files"
+cp -rf /usr/share/timesink/zshrc ~/.zshrc
+cp -rf /usr/share/timesink/config/* ~/.config/
+
+echo "Installing shell enhancements"
+nx profile install nixpkgs#atuin
+nx profile install nixpkgs#bat
+nx profile install nixpkgs#fzf
+nx profile install nixpkgs#fd
+nx profile install nixpkgs#lsd
+nx profile install nixpkgs#ripgrep
+nx profile install nixpkgs#starship
+nx profile install nixpkgs#zoxide
+
+echo $VER > $VER_FILE

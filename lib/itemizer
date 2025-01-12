@@ -62,9 +62,6 @@ create_custom_content_pkg() {
 
     cp -l --parents /usr/share/glib-2.0/schemas/*compiled* /.mat/custom_content
 
-    kver="$(find /usr/lib/modules -maxdepth 1 -type d ! -path /usr/lib/modules | cut -d/ -f5)"
-    cp -l --parents "/usr/lib/modules/$kver/initramfs.img" /.mat/custom_content
-
     rsync -aHlx --link-dest=../../../custom_content/usr /.mat/custom_content/usr/ "/.mat/.store/$custom_content/usr/"
     rsync -aHlx --link-dest=../../../custom_content/etc /.mat/custom_content/etc/ "/.mat/.store/$custom_content/etc/"
 

@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+
+VER=20
+VER_FILE=/etc/timesink/ver
+if [[ -f $VER_FILE ]]; then
+    VER_RAN=$(cat $VER_FILE)
+else
+    touch $VER_FILE
+fi
+
+if [[ -f $VER_FILE && $VER = "$VER_RAN" ]]; then
+    echo "Flatpak manager v$VER has already ran. Exiting..."
+    exit 0
+fi
+
+flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+flatpak remote-modify --no-filter --enable flathub
+
+if grep -q "fedora" <<< "$(flatpak remotes)"; then
+    read -ra FED_FLATPAKS <<< "$(flatpak list --app-runtime=org.fedoraproject.Platform --columns=application | tail -n +1 | tr "\n" " ")"
+    flatpak uninstall --noninteractive "${FED_FLATPAKS[@]}"
+    flatpak remote-delete fedora --force || true    
+    flatpak remote-delete fedora-testing --force || true
+    FED_RUNTIME="$(flatpak list --runtime | tr " " "n" | awk '{print $2}' | grep fedora)"
+    if [[ -n $FED_RUNTIME ]]; then
+        flatpak uninstall --noninteractive "$FED_RUNTIME"
+    fi
+fi
+
+INSTALL_LIST_FILE="/usr/share/timesink/flatpak/install"
+REMOVE_LIST_FILE="/usr/share/timesink/flatpak/remove"
+
+if [[ -f $INSTALL_LIST_FILE ]]; then
+    read -ra INSTALL_LIST <<< "$(cat $INSTALL_LIST_FILE | tr "\n" " ")"
+    if [[ -n ${INSTALL_LIST[*]} ]]; then
+        flatpak install --noninteractive flathub "${INSTALL_LIST[@]}" || exit 1
+    fi
+fi
+
+if [[ ! -f $VER_FILE && -f $REMOVE_LIST_FILE ]]; then
+  read -ra REMOVE_LIST <<< "$(cat $REMOVE_LIST_FILE | tr "\n" " ")"
+  if [[ -n ${REMOVE_LIST[*]} ]]; then
+    flatpak uninstall --noninteractive "${REMOVE_LIST[@]}" || exit 1
+  fi
+fi
+
+# change shell to zsh (because service runs privileged)
+read -ra users <<< "$(getent passwd {1000..1500} | awk -F: '{print $1}' | tr "\n" " ")"
+for user in "${users[@]}"; do
+    chsh -s /usr/bin/zsh "$user"
+done
+
+# fix logrotate.service failure (because service runs privileged)
+restorecon -r -v /var/log
+
+echo $VER > $VER_FILE

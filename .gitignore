@@ -1,4 +1,4 @@
 .current
 .pkgs*
 .store
-custom_content
+cosign.private

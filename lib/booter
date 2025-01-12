@@ -4,8 +4,9 @@ set -oue pipefail
 booty_bits() {
     deployment="$1"
     kver="$(cat "/.mat/.pkgs$deployment" | grep kernel | cut -d- -f2- | sort -n | tail -n1)"
+    cust="$(cat "/.mat/.pkgs$deployment" | grep custom_content | cut -d- -f2- | sort -n | tail -n1)"
     new_kernel="$(find /.mat/.store/*"$kver"* -name vmlinuz -type f)"
-    new_init="$(find /.mat/.store/*"$kver"* -name initramfs.img -type f)"
+    new_init="$(find /.mat/.store/*"$cust"* -name initramfs.img -type f)"
 
     mkdir -p "/boot/$deployment"
     cp -fa "$new_kernel" "/boot/$deployment" || :
