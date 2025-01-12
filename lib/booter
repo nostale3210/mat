@@ -12,15 +12,10 @@ booty_bits() {
     cp -fa "$new_init" "/boot/$deployment" || :
 
     cp -fa /.mat/.boot.conf "$deployment.conf"
-    cp -fa /.mat/.init.sh "$deployment.sh"
-    chmod +x "$deployment.sh"
 
     sed -i "s@INSERT_DEPLOYMENT@$deployment@g" "$deployment.sh"
-    sed -i "s@ALD_PATH@/var/deployments@g" "$deployment.sh"
     sed -i "s@INSERT_DEPLOYMENT@$deployment@g" "$deployment.conf"
-    sed -i "s@ALD_PATH@/var/deployments@g" "$deployment.conf"
     
-    mv "$deployment.sh" "/var/deployments/init/$deployment.sh"
     mv "$deployment.conf" "/boot/loader/entries/$deployment.conf"
 }
 

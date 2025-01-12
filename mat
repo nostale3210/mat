@@ -7,6 +7,10 @@ for func in lib/*; do
     fi
 done
 
+PREFIX=""
+
+if [[ "$@" == *"--init"* ]]; then PREFIX="${@: -1}"; fi
+
 
 case "$1" in
     unused)
@@ -19,7 +23,7 @@ case "$1" in
         generate_deployment "$2"
         ;;
     relabel)
-        relabel_deployment "$2"
+        relabel_deployment
         ;;
     gen_boot)
         booty_bits "$2"
@@ -28,7 +32,7 @@ case "$1" in
         relabel_boot
         ;;
     pull)
-        pull_image "$3"
+        pull_image "$2"
         ;;
     update)
         update_store "$3" "$2"

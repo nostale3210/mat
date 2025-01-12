@@ -7,11 +7,12 @@ swap_dep() {
         exit 1
     fi
 
-    exch /usr /.mat/staging/usr
-    exch /etc /.mat/staging/etc
+    exch "$PREFIX/usr" "$PREFIX/.mat/staging/usr"
+    exch "$PREFIX/etc" "$PREFIX/.mat/staging/etc"
+    exch "$PREFIX/.mat/.current" "$PREFIX/.mat/.staging"
 }
 
 clear_staging() {
     printf "Removing stale tree...\n"
-    rm -rf /.mat/staging
+    rm -rf "$PREFIX/.mat/staging"
 }

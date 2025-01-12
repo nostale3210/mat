@@ -65,6 +65,9 @@ create_custom_content_pkg() {
     kver="$(find /usr/lib/modules -maxdepth 1 -type d ! -path /usr/lib/modules | cut -d/ -f5)"
     cp -l --parents "/usr/lib/modules/$kver/initramfs.img" /.mat/custom_content
 
+    rsync -aHlx --link-dest=../../../custom_content/usr /.mat/custom_content/usr/ "/.mat/.store/$custom_content/usr/"
+    rsync -aHlx --link-dest=../../../custom_content/etc /.mat/custom_content/etc/ "/.mat/.store/$custom_content/etc/"
+
     read -ra bin_files <<< "$(find /.mat/.store/$custom_content/usr/bin)"
     for file_path in "${bin_files[@]}"; do
         chmod +x "$file_path"
@@ -74,9 +77,6 @@ create_custom_content_pkg() {
     for file_path in "${libexec_files[@]}"; do
         chmod +x "$file_path"
     done
-
-    rsync -aHlx --link-dest=../../../custom_content/usr /.mat/custom_content/usr/ "/.mat/.store/$custom_content/usr/"
-    rsync -aHlx --link-dest=../../../custom_content/etc /.mat/custom_content/etc/ "/.mat/.store/$custom_content/etc/"
 
     echo "$custom_content" >> /.mat/.pkgs
     echo "" > /.mat/.current

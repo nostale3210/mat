@@ -4,20 +4,36 @@ set -oue pipefail
 generate_deployment() {
     deployment="$1"
 
-    read -ra pkg_list <<< "$(cat /.mat/.pkgs"$deployment" | tr "\n" " ")"
+    read -ra pkg_list <<< "$(cat "$PREFIX"/.mat/.pkgs"$deployment" | tr "\n" " ")"
 
     for package in "${pkg_list[@]}"; do
         printf "Installing package $package...\n"
-        rsync -aHlx --link-dest="../.store/$package" /.mat/.store/$package/ /.mat/staging/ 2>/dev/null || :
+        rsync -aHlx --link-dest="../.store/$package" "$PREFIX/.mat/.store/$package/" "$PREFIX/.mat/staging/" 2>/dev/null || :
     done
 
-    mkdir -p /.mat/staging/usr/local
-    cp -rfa /etc /.mat/staging || :
-    rm /.mat/staging/etc/resolv.conf
-    ln -sf /run/systemd/resolve/stub-resolv.conf /.mat/staging/etc/resolv.conf
+    mkdir -p "$PREFIX/.mat/staging/usr/local"
+    cp -rfa "$PREFIX/etc" "$PREFIX/.mat/staging" || :
+    rm "$PREFIX/.mat/staging/etc/resolv.conf"
+    ln -sf "$PREFIX/run/systemd/resolve/stub-resolv.conf" "$PREFIX/.mat/staging/etc/resolv.conf" || :
+
+    echo "$deployment" > "$PREFIX/.mat/.staging"
 }
 
 relabel_deployment() {
     printf "Relabeling staging tree for SELinux...\nThis might take a minute...\n"
-    setfiles -r "/.mat/staging" "/.mat/staging/etc/selinux/targeted/contexts/files/file_contexts" "/.mat/staging" &>/dev/null
+    setfiles -r "$PREFIX/.mat/staging" "$PREFIX/.mat/staging/etc/selinux/targeted/contexts/files/file_contexts" "$PREFIX/.mat/staging" &>/dev/null
+}
+
+relabel_store() {
+    deployment="$1"
+
+    read -ra pkg_list <<< "$(cat /.mat/.pkgs"$deployment" | tr "\n" " ")"
+    selinux_policy="$(cat /.mat/.pkgs"$deployment" | grep "selinux-policy-targeted*" | tail -n1)"
+
+    printf "Relabeling deployment %s packages...\n" "$deployment"
+
+    for package in "${pkg_list[@]}"; do
+        printf "Relabeling %s...\n" "$package"
+        setfiles -r "/.mat/.store/$package" "/.mat/.store/$selinux_policy/etc/selinux/targeted/contexts/files/file_contexts" "/.mat/.store/$package" &>/dev/null || :
+    done
 }
