@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -oue pipefail
+
+swap_dep() {
+    if [[ ! -d /.mat/staging ]]; then
+        printf "No staging tree!\n"
+        exit 1
+    fi
+
+    exch /usr /.mat/staging/usr
+    exch /etc /.mat/staging/etc
+}
+
+clear_staging() {
+    printf "Removing stale tree...\n"
+    rm -rf /.mat/staging
+}

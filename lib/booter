@@ -3,16 +3,16 @@ set -oue pipefail
 
 booty_bits() {
     deployment="$1"
-    kver="$(cat ".pkgs$deployment" | grep kernel | cut -d- -f2- | sort -n | tail -n1)"
-    new_kernel="$(find .store/*"$kver"* -name vmlinuz -type f)"
-    new_init="$(find .store/*"$kver"* -name initramfs.img -type f)"
+    kver="$(cat "/.mat/.pkgs$deployment" | grep kernel | cut -d- -f2- | sort -n | tail -n1)"
+    new_kernel="$(find /.mat/.store/*"$kver"* -name vmlinuz -type f)"
+    new_init="$(find /.mat/.store/*"$kver"* -name initramfs.img -type f)"
 
     mkdir -p "/boot/$deployment"
     cp -fa "$new_kernel" "/boot/$deployment" || :
     cp -fa "$new_init" "/boot/$deployment" || :
 
-    cp -fa boot.conf "$deployment.conf"
-    cp -fa init.sh "$deployment.sh"
+    cp -fa /.mat/.boot.conf "$deployment.conf"
+    cp -fa /.mat/.init.sh "$deployment.sh"
     chmod +x "$deployment.sh"
 
     sed -i "s@INSERT_DEPLOYMENT@$deployment@g" "$deployment.sh"

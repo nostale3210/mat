@@ -1,23 +1,23 @@
 #!/usr/bin/env bash
 set -oue pipefail
 
-if [[ -f ./.current && "$(cat ./.current)" != "" ]]; then
-    failed="$(cat ./.current)"
-    printf "Cleaning up $failed...\n"
-    rm -rf "./.store/${failed:?}"
-    echo "" > ./.current
-fi
-
 get_unused_packages() {
     read -ra pkg_files <<< "$(find /.mat -maxdepth 1 -type f -name ".pkgs*" | tr "\n" " ")"
 
     depl_pkgs="$(cat "${pkg_files[@]}" | sort -u)"
-    store_pkgs="$(find /.mat/.store -maxdepth 1 -type d ! -path ".store" | cut -d/ -f2 | sort)"
+    store_pkgs="$(find /.mat/.store -maxdepth 1 -type d ! -path ".store" | cut -d/ -f4 | sort)"
 
     echo -e "$depl_pkgs\n$store_pkgs" | sort | uniq -u | grep -v "filesystem-.*"
 }
 
 prune_unused_packages() {
+    if [[ -f /.mat/.current && "$(cat /.mat/.current)" != "" ]]; then
+        failed="$(cat /.mat/.current)"
+        printf "Cleaning up $failed...\n"
+        rm -rf "./.store/${failed:?}"
+        echo "" > ./.current
+    fi
+
     read -ra unused_packages <<< "$(get_unused_packages | tr "\n" " ")"
     for pkg in "${unused_packages[@]}"; do
         printf "Pruning $pkg...\n"

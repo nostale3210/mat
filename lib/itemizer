@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -oue pipefail
 
-if [[ -f ./.current && "$(cat ./.current)" != "" ]]; then
-    failed="$(cat ./.current)"
-    printf "Cleaning up $failed...\n"
-    rm -rf "./.store/${failed:?}"
-    echo "" > ./.current
-fi
-
 populate_store() {
+    if [[ -f /.mat/.current && "$(cat /.mat/.current)" != "" ]]; then
+        failed="$(cat /.mat/.current)"
+        printf "Cleaning up $failed...\n"
+        rm -rf "./.store/${failed:?}"
+        echo "" > ./.current
+    fi
+
     if [[ ! -d /.mat/.store ]]; then mkdir -p /.mat/.store || (printf "Couldn't create store." && exit 1); fi
 
     rpm -qa | sort > /.mat/.pkgs
@@ -47,16 +47,23 @@ populate_store() {
 }
 
 create_custom_content_pkg() {
+    if [[ -f /.mat/.current && "$(cat /.mat/.current)" != "" ]]; then
+        failed="$(cat /.mat/.current)"
+        printf "Cleaning up $failed...\n"
+        rm -rf "./.store/${failed:?}"
+        echo "" > ./.current
+    fi
+
     custom_content="custom_content-$(sha256sum <<< "$RANDOM" | cut -d' ' -f1)"
     printf "Storing $custom_content...\n"
     echo "$custom_content" > /.mat/.current
     mkdir -p "/.mat/.store/$custom_content/usr"
     mkdir -p "/.mat/.store/$custom_content/etc"
 
-    rsync -aHlx --link-dest=../../../custom_content/usr /.mat/custom_content/usr/ "/.mat/.store/$custom_content/usr/"
-    rsync -aHlx --link-dest=../../../custom_content/etc /.mat/custom_content/etc/ "/.mat/.store/$custom_content/etc/"
-    rm -f /.mat/custom_content/usr/share/glib-2.0/schemas/*compiled* || :
     cp -l --parents /usr/share/glib-2.0/schemas/*compiled* /.mat/custom_content
+
+    kver="$(find /usr/lib/modules -maxdepth 1 -type d ! -path /usr/lib/modules | cut -d/ -f5)"
+    cp -l --parents "/usr/lib/modules/$kver/initramfs.img" /.mat/custom_content
 
     read -ra bin_files <<< "$(find /.mat/.store/$custom_content/usr/bin)"
     for file_path in "${bin_files[@]}"; do
@@ -67,6 +74,9 @@ create_custom_content_pkg() {
     for file_path in "${libexec_files[@]}"; do
         chmod +x "$file_path"
     done
+
+    rsync -aHlx --link-dest=../../../custom_content/usr /.mat/custom_content/usr/ "/.mat/.store/$custom_content/usr/"
+    rsync -aHlx --link-dest=../../../custom_content/etc /.mat/custom_content/etc/ "/.mat/.store/$custom_content/etc/"
 
     echo "$custom_content" >> /.mat/.pkgs
     echo "" > /.mat/.current

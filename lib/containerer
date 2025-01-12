@@ -1,13 +1,6 @@
 #!/usr/bin/env bash
 set -oue pipefail
 
-if [[ -f ./.current && "$(cat ./.current)" != "" ]]; then
-    failed="$(cat ./.current)"
-    printf "Cleaning up $failed...\n"
-    rm -rf "./.store/${failed:?}"
-    echo "" > ./.current
-fi
-
 pull_image() {
     SOURCE_IMAGE="$1"
 
@@ -23,6 +16,13 @@ pull_image() {
 }
 
 update_store() {
+    if [[ -f /.mat/.current && "$(cat /.mat/.current)" != "" ]]; then
+        failed="$(cat /.mat/.current)"
+        printf "Cleaning up $failed...\n"
+        rm -rf "/.mat/.store/${failed:?}"
+        echo "" > ./.current
+    fi
+
     SOURCE_IMAGE="$1"
     deployment="$2"
 
@@ -33,9 +33,9 @@ update_store() {
     read -ra pkg_list <<< "$(cat /.mat/.pkgs"$deployment" | tr "\n" " ")"
 
     for package in "${pkg_list[@]}"; do
-        if [[ ! -d "/.mat/.store/$PACKAGE" ]]; then
+        if [[ ! -d "/.mat/.store/$package" ]]; then
             printf "Storing package $package...\n"
-            echo "$pkg" > /.mat/.current
+            echo "$package" > /.mat/.current
             rsync -aHlx "$CMOUNT/.mat/.store/$package" /.mat/.store/ 2>/dev/null || :
             echo "" > /.mat/.current
         fi
