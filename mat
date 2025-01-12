@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -oue pipefail
 
-for func in /usr/lib/mat/*; do
+for func in lib/*; do
     if [[ -f "$func" ]]; then
         source "$func"
     fi

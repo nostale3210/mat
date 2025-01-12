@@ -1,0 +1,3 @@
+FROM alpine:latest
+
+COPY --from=ghcr.io/nostale3210/ald-store:latest /.mat /.mat

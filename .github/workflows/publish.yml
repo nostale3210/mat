@@ -2,10 +2,7 @@ name: build-ald-utils
 on:
   pull_request:
   schedule:
-    - cron: '0 0 * * 0'
-  push:
-      branches:
-        - "main"
+    - cron: '0 1 * * 0'
   workflow_dispatch:
 
 env:
@@ -41,7 +38,7 @@ jobs:
       - name: Gather environment variables
         shell: bash
         run: |
-          echo "IMAGE_NAME=ald-store" >> $GITHUB_ENV
+          echo "IMAGE_NAME=mat-pub" >> $GITHUB_ENV
 
       - name: Generate tags
         id: generate-tags
@@ -63,11 +60,11 @@ jobs:
       - name: Build image
         shell: bash
         run: |
-          podman build --label=org.opencontainers.image.title=mat-store \
-            --label=org.opencontainers.image.description=mat-store\
+          podman build --label=org.opencontainers.image.title=mat-pub \
+            --label=org.opencontainers.image.description=mat-pub \
             --label=org.opencontainers.image.version=main \
-            --pull=newer --tag="localhost/mat-store" \
-            -f ./Containerfile.store
+            --pull=newer --tag="localhost/mat-pub" \
+            -f ./Containerfile.pub
 
       - name: Push image
         shell: bash
@@ -76,7 +73,7 @@ jobs:
 
           push_pr() {
             FAILED=()
-            podman push "localhost/mat-store" "${{ env.PR_TAG }}" \
+            podman push "localhost/mat-pub" "${{ env.PR_TAG }}" \
               --compression-format=zstd:chunked --tls-verify=true || FAILED+=("PR")
             if [[ "${{ github.event_name }}" == "pull_request" && "${FAILED[*]}" == *"PR"* ]]; then
               echo "PR failed!" && return 1
@@ -86,7 +83,7 @@ jobs:
           push_tag() {
             TAG="$1"
             FAILED=()
-            podman push "localhost/mat-store" "${TAGS[$TAG]}" \
+            podman push "localhost/mat-pub" "${TAGS[$TAG]}" \
               --compression-format=zstd:chunked --tls-verify=true \
               --sign-by-sigstore-private-key=/tmp/certs/SIGNING_SECRET.key || FAILED+=("$TAG")
             if [[ "${FAILED[*]}" == *"DATE"* && "${{ github.event_name }}" != "pull_request" ]]; then
