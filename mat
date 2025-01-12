@@ -8,6 +8,7 @@ for func in /usr/lib/mat/*; do
 done
 
 PREFIX=""
+CONTAINER_URL="ghcr.io/nostale3210/mat-test:latest"
 
 if [[ "$@" == *"--init"* ]]; then PREFIX="${@: -1}"; fi
 
@@ -35,7 +36,7 @@ case "$1" in
         pull_image "$2"
         ;;
     update)
-        update_store "$3" "$2"
+        update_store "$CONTAINER_URL" "$2"
         ;;
     itemize)
         populate_store

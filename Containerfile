@@ -17,6 +17,8 @@ RUN KVER="$(rpm -q kernel --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}')" && \
 
 RUN mat itemize
 
+RUN rm -rf /var
+
 
 FROM alpine:latest AS tgt
 
