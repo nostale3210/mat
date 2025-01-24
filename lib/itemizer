@@ -82,6 +82,8 @@ hash_store() {
     export -f hash_dir
     export -f move_dir
 
+    printf "Calculating package hashes..."
+
     cat /.mat/pkgs | grep -v "^filesystem" | \
         xargs -n1 -P1 \
         bash -c 'hash_dir "$@"' _
@@ -96,10 +98,22 @@ hash_store() {
 
 verify_store() {
     verify_package() {
-        :
+        pkg="$1"
+        pre_hash="$(sed "s/^.*-\(.*\)/\1/" <<< "$@")"
+        dir_hash="$(find ".store/$pkg" -type f -exec sha1sum {} \; | awk '{ print $1 }' | sort | \
+            sha1sum | awk '{ print $1 }')"
+
+        if [[ ! "$pre_hash" == "$dir_hash" ]]; then
+            printf "[Warn] %s has a mismatching hash!\n" "$pkg"
+        fi
     }
 
-    find . -maxdepth 1 -type f -name "pkgs*" | xargs cat | sort -u
+    export -f verify_package
+
+    find . -maxdepth 1 -type f -name "pkgs*" | xargs cat | sort -u | grep -v "^filesystem" | \
+        xargs -n1 -P"$(("$(nproc --all)"**2))" bash -c 'verify_package "$@"' _
+
+    unset -f verify_package
 }
 
 create_custom_content_pkg() {
@@ -109,7 +123,7 @@ create_custom_content_pkg() {
     mkdir -p "/.mat/.store/$custom_content/usr"
     mkdir -p "/.mat/.store/$custom_content/etc"
 
-    cp -l --parents /usr/share/glib-2.0/schemas/*compiled* /.mat/custom_content || \
+    cp -l --parents /usr/share/glib-2.0/schemas/*compiled* /.mat/custom_content 2>/dev/null || \
         rm -rf /.mat/custom_content/usr/share/glib-2.0/schemas/*compiled* && \
         cp -fax --parents /usr/share/glib-2.0/schemas/*compiled* /.mat/custom_content
 

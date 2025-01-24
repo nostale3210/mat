@@ -12,7 +12,7 @@ generate_deployment() {
     export -f install_package
 
     printf "Installing deployment...\n"
-    cat pkgs | grep -v "^filesystem" | xargs -n1 -P"$(("$(nproc --all)"**2))" \
+    cat "pkgs$deployment" | grep -v "^filesystem" | xargs -n1 -P"$(("$(nproc --all)"**2))" \
         bash -c 'install_package "$@"' _
 
     unset -f install_package
