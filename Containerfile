@@ -30,5 +30,4 @@ RUN KVER="$(rpm -q kernel --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}')" && \
     -f "/.mat/custom_content/usr/lib/modules/$KVER/initramfs.img"
 
 RUN mat itemize && \
-    mat hash && \
-    mat relabel 1
+    mat hash

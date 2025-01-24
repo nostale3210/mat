@@ -28,11 +28,11 @@ generate_deployment() {
 relabel_store() {
     deployment="$1"
 
-    selinux_policy="$(cat pkgs | grep "selinux-policy-targeted*" | tail -n1)"
+    selinux_policy="$(cat /.mat/pkgs | grep "selinux-policy-targeted*" | tail -n1)"
 
     printf "Relabeling deployment %s packages...\n" "$deployment"
 
-    cat pkgs | grep -v "^filesystem" | xargs -I{} -n1 -P"$(("$(nproc --all)"**2))" \
-        setfiles -r .store/{} \
-        ".store/$selinux_policy/etc/selinux/targeted/contexts/files/file_contexts" .store/{}
+    cat /.mat/pkgs | grep -v "^filesystem" | xargs -I{} -n1 -P"$(("$(nproc --all)"**2))" \
+        setfiles -r /.mat/.store/{} \
+        "/.mat/.store/$selinux_policy/etc/selinux/targeted/contexts/files/file_contexts" /.mat/.store/{}
 }
