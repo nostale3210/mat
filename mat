@@ -12,9 +12,8 @@ CONTAINER_URL="localhost/mat"
 
 if [[ "$@" == *"--init"* ]]; then PREFIX="${@: -1}"; fi
 
-if systemd-inhibit --version &>/dev/null && \
-    ! systemd-inhibit --list | grep -q "mat-rootful-ops" && \
-    [[ "$(id -u)" == "0" ]]; then
+if systemd-inhibit --who="mat" --what="idle" sleep 0.1 &>/dev/null && \
+    ! { systemd-inhibit --list | grep -q "mat-rootful-ops" ; } && [[ "$(id -u)" == "0" ]]; then
     set -e
     systemd-inhibit --what="idle:sleep:shutdown" --who="mat-rootful-ops" --why="Doing important stuff" \
         mat "$@"
@@ -23,12 +22,12 @@ fi
 
 if [[ "$(id -u)" == "0" ]]; then
     [[ ! -f "$PREFIX/etc/.mat.lock" ]] && \
-        mkdir -p "$PREFIX/etc" && touch "$PREFIX/etc/.mat.lock"
+        mkdir -p "$PREFIX/etc/mat" && touch "$PREFIX/etc/mat/.mat.lock"
 
     exec {MAT_LOCK}<>"$PREFIX/etc/.mat.lock" || \
         { printf "Couldn't set lock fd.\n" && exit 1 ; }
 
-    printf "Acquiring lock..."
+    printf "Acquiring lock...\n"
     flock -x "$MAT_LOCK"
 fi
 

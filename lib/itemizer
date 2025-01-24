@@ -82,7 +82,7 @@ hash_store() {
     export -f hash_dir
     export -f move_dir
 
-    printf "Calculating package hashes..."
+    printf "Calculating package hashes...\n"
 
     cat /.mat/pkgs | grep -v "^filesystem" | \
         xargs -n1 -P1 \
