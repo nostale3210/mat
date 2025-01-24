@@ -1,4 +1,6 @@
 .current
 .pkgs*
+pkgs
 .store
+staging
 cosign.private

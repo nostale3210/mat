@@ -72,13 +72,27 @@ hash_store() {
         sed -i "s/^\($pkg\).*$/\1-$dir_hash/" pkgs
     }
 
-    export -f hash_dir
+    move_dir() {
+        pkg_hash="$1"
 
-    cat pkgs | grep -v "^filesystem" | awk '{ print $1 }' | \
+        pkg="$(sed "s/^\(.*\)-.*/\1/" <<< "$@")"
+        dir_hash="$(sed "s/^.*-\(.*\)/\1/" <<< "$@")"
+        mv ".store/$pkg" ".store/$pkg_hash"
+    }
+
+    export -f hash_dir
+    export -f move_dir
+
+    cat pkgs | grep -v "^filesystem" | \
         xargs -n1 -P1 \
         bash -c 'hash_dir "$@"' _
 
+    cat pkgs | grep -v "^filesystem" | \
+        xargs -n1 -P"$(("$(nproc --all)"/2))" \
+        bash -c 'move_dir "$@"' _
+
     unset -f hash_dir
+    unset -f move_dir
 }
 
 verify_store() {

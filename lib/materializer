@@ -5,14 +5,14 @@ generate_deployment() {
     deployment="$1"
 
     install_package() {
-        printf "Installing package $1...\n"
-        rsync -aHlx --link-dest="../.store/$1-$2" ".store/$1-$2/" \
+        rsync -aAHlXx --link-dest="../.store/$1" ".store/$1/" \
             "staging/" 2>/dev/null || :
     }
 
     export -f install_package
 
-    cat pkgs | grep -v "^filesystem" | xargs -n2 -P"$(("$(nproc --all)"**2))" \
+    printf "Installing deployment...\n"
+    cat pkgs | grep -v "^filesystem" | xargs -n1 -P"$(("$(nproc --all)"**2))" \
         bash -c 'install_package "$@"' _
 
     unset -f install_package
@@ -33,13 +33,11 @@ relabel_deployment() {
 relabel_store() {
     deployment="$1"
 
-    read -ra pkg_list <<< "$(cat /.mat/.pkgs"$deployment" | tr "\n" " ")"
-    selinux_policy="$(cat /.mat/.pkgs"$deployment" | grep "selinux-policy-targeted*" | tail -n1)"
+    selinux_policy="$(cat pkgs | grep "selinux-policy-targeted*" | tail -n1)"
 
     printf "Relabeling deployment %s packages...\n" "$deployment"
 
-    for package in "${pkg_list[@]}"; do
-        printf "Relabeling %s...\n" "$package"
-        setfiles -r "/.mat/.store/$package" "/.mat/.store/$selinux_policy/etc/selinux/targeted/contexts/files/file_contexts" "/.mat/.store/$package" &>/dev/null || :
-    done
+    cat pkgs | grep -v "^filesystem" | xargs -I{} -n1 -P"$(("$(nproc --all)"**2))" \
+        setfiles -r .store/{} ".store/$selinux_policy/etc/selinux/targeted/contexts/files/file_contexts" \
+        .store/{}
 }

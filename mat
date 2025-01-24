@@ -24,7 +24,7 @@ case "$1" in
         generate_deployment "$2"
         ;;
     relabel)
-        relabel_deployment
+        relabel_store "$2"
         ;;
     gen_boot)
         booty_bits "$2"
