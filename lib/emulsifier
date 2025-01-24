@@ -11,6 +11,8 @@ get_unused_packages() {
 }
 
 prune_unused_packages() {
+    lock_image_storage u
+
     if [[ -f /.mat/.current && "$(cat /.mat/.current)" != "" ]]; then
         failed="$(cat /.mat/.current)"
         printf "Cleaning up failed packages...\n"
@@ -39,4 +41,6 @@ prune_unused_packages() {
 
     unset -f prune_pkg
     unset -f prune_pkgs
+
+    lock_image_storage l
 }

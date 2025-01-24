@@ -19,6 +19,7 @@ depends() {
 install() {
     dracut_install /usr/libexec/mat-boot.sh
     dracut_install /usr/lib/mat/switcher
+    dracut_install /usr/lib/mat/locker
     dracut_install /usr/lib/mat/materializer
     dracut_install /usr/bin/mat
 

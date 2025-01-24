@@ -16,6 +16,8 @@ pull_image() {
 }
 
 update_store() {
+    lock_image_storage u
+
     if [[ -f /.mat/.current && "$(cat /.mat/.current)" != "" ]]; then
         printf "Cleaning up failed packages...\n"
         cat /.mat/.current | xargs -I{} -P"$(("$(nproc --all)"/2))" \
@@ -54,4 +56,6 @@ update_store() {
 
     podman unmount mat-tmp
     podman rm mat-tmp
+
+    lock_image_storage l
 }

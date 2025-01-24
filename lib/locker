@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+set -oue pipefail
+
+lock_root_dir() {
+    lock() {
+        chattr -i "$PREFIX/" || :
+    }
+
+    unlock() {
+        chattr +i "$PREFIX/" || :
+    }
+
+    if [[ "$1" == "l" ]]; then
+        lock
+    elif [[ "$1" == "u" ]]; then
+        unlock
+    fi
+}
+
+lock_image_storage() {
+    lock() {
+        mountpoint $PREFIX/.mat &>/dev/null || mount -o bind,ro $PREFIX/.mat $PREFIX/.mat
+    }
+
+    unlock() {
+        mountpoint $PREFIX/.mat &>/dev/null && umount -f $PREFIX/.mat &>/dev/null
+    }
+
+    if [[ "$1" == "l" ]]; then
+        lock
+    elif [[ "$1" == "u" ]]; then
+        unlock
+    fi
+}
+
+lock_usr() {
+    lock() {
+        mountpoint $PREFIX/usr &>/dev/null || mount -o bind,ro $PREFIX/usr $PREFIX/usr
+    }
+
+    unlock() {
+        mountpoint $PREFIX/usr &>/dev/null || umount -flR $PREFIX/usr $PREFIX/usr
+    }
+
+    if [[ "$1" == "l" ]]; then
+        lock
+    elif [[ "$1" == "u" ]]; then
+        unlock
+    fi
+}

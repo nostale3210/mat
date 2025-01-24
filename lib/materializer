@@ -4,6 +4,8 @@ set -oue pipefail
 generate_deployment() {
     deployment="$1"
 
+    lock_image_storage u
+
     install_package() {
         rsync -aAHlXx --link-dest="../.store/$1" "$PREFIX/.mat/.store/$1/" \
             "$PREFIX/.mat/staging/" 2>/dev/null || :
@@ -26,10 +28,14 @@ generate_deployment() {
     chcon -t etc_t "$PREFIX/.mat/staging/etc" &>/dev/null
 
     echo "$deployment" > "$PREFIX/.mat/staging/usr/.mat_dep"
+
+    lock_image_storage l
 }
 
 relabel_store() {
     deployment="$1"
+
+    lock_image_storage u
 
     selinux_policy="$(cat "/.mat/.pkgs$1" | grep "selinux-policy-targeted*" | tail -n1)"
 
@@ -39,4 +45,6 @@ relabel_store() {
         setfiles -r /.mat/.store/{} \
         "/.mat/.store/$selinux_policy/etc/selinux/targeted/contexts/files/file_contexts" \
         /.mat/.store/{} &>/dev/null
+
+    lock_image_storage l
 }

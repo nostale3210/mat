@@ -2,16 +2,28 @@
 set -oue pipefail
 
 swap_dep() {
-    if [[ ! -d /.mat/staging ]]; then
+    if [[ ! -d "$PREFIX/.mat/staging" ]]; then
         printf "No staging tree!\n"
         exit 1
     fi
 
+    lock_image_storage u
+    lock_root_dir u
+    lock_usr u
+    
     exch "$PREFIX/usr" "$PREFIX/.mat/staging/usr"
     exch "$PREFIX/etc" "$PREFIX/.mat/staging/etc"
+
+    lock_usr l
+    lock_root_dir l
+    lock_image_storage l
 }
 
 clear_staging() {
+    lock_image_storage u
+
     printf "Removing stale tree...\n"
     rm -rf "$PREFIX/.mat/staging"
+
+    lock_image_storage l
 }
