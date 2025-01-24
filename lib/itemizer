@@ -37,7 +37,7 @@ populate_store() {
     store_package() {
         PACKAGE="$1"
 
-        if [[ ! -d ".store/$PACKAGE"* && "$PACKAGE" != "filesystem"* ]]; then
+        if test ! -d ".store/$PACKAGE"* && [[ "$PACKAGE" != "filesystem"* ]]; then
             printf "Storing $PACKAGE\n"
             echo "$PACKAGE" >> .current
             mkdir -p ".store/$PACKAGE"

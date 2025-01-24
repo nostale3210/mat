@@ -22,12 +22,7 @@ generate_deployment() {
     rm "staging/etc/resolv.conf"
     ln -sf "/run/systemd/resolve/stub-resolv.conf" "staging/etc/resolv.conf" || :
 
-    echo "$deployment" > "staging/usr/.dep"
-}
-
-relabel_deployment() {
-    printf "Relabeling staging tree for SELinux...\nThis might take a minute...\n"
-    setfiles -r "staging" "staging/etc/selinux/targeted/contexts/files/file_contexts" "staging" &>/dev/null
+    echo "$deployment" > "staging/usr/.mat_dep"
 }
 
 relabel_store() {
@@ -38,6 +33,6 @@ relabel_store() {
     printf "Relabeling deployment %s packages...\n" "$deployment"
 
     cat pkgs | grep -v "^filesystem" | xargs -I{} -n1 -P"$(("$(nproc --all)"**2))" \
-        setfiles -r .store/{} ".store/$selinux_policy/etc/selinux/targeted/contexts/files/file_contexts" \
-        .store/{}
+        setfiles -r .store/{} \
+        ".store/$selinux_policy/etc/selinux/targeted/contexts/files/file_contexts" .store/{}
 }
