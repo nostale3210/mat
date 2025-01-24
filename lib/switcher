@@ -9,10 +9,9 @@ swap_dep() {
 
     exch "$PREFIX/usr" "$PREFIX/.mat/staging/usr"
     exch "$PREFIX/etc" "$PREFIX/.mat/staging/etc"
-    exch "$PREFIX/.mat/.current" "$PREFIX/.mat/.staging"
 }
 
 clear_staging() {
     printf "Removing stale tree...\n"
-    rm -rf "staging"
+    rm -rf "$PREFIX/.mat/staging"
 }

@@ -11,7 +11,7 @@ OnFailureJobMode=isolate
 
 [Service]
 Type=oneshot
-ExecStart=/usr/libexec/mat-boot.sh --init /sysroot
+ExecStart=/usr/libexec/mat-boot.sh /sysroot
 StandardInput=null
 StandardOutput=journal
 StandardError=journal+console

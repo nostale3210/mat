@@ -14,7 +14,6 @@ booty_bits() {
 
     cp -fa /.mat/.boot.conf "$deployment.conf"
 
-    sed -i "s@INSERT_DEPLOYMENT@$deployment@g" "$deployment.sh"
     sed -i "s@INSERT_DEPLOYMENT@$deployment@g" "$deployment.conf"
     
     mv "$deployment.conf" "/boot/loader/entries/$deployment.conf"

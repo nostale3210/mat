@@ -5,7 +5,7 @@ populate_store() {
     if [[ -f /.mat/.current && "$(cat /.mat/.current)" != "" ]]; then
         printf "Cleaning up failed packages...\n"
         cat /.mat/.current | xargs -I{} -P"$(("$(nproc --all)"/2))" \
-            rm -rf .store/{}
+            rm -rf /.mat/.store/{}
         echo "" > /.mat/.current
     fi
 
@@ -36,7 +36,7 @@ populate_store() {
     store_package() {
         PACKAGE="$1"
 
-        if test ! -d "/.mat/.store/$PACKAGE"* && [[ "$PACKAGE" != "filesystem"* ]]; then
+        if [[ ! -d "/.mat/.store/$PACKAGE" && "$PACKAGE" != "filesystem"* ]]; then
             printf "Storing $PACKAGE\n"
             echo "$PACKAGE" >> /.mat/.current
             mkdir -p "/.mat/.store/$PACKAGE"
@@ -67,15 +67,15 @@ hash_store() {
     hash_dir() {
         pkg="$1"
 
-        dir_hash="$(find ".mat/.store/$pkg" -type f -exec sha1sum {} \; | awk '{ print $1 }' | sort | \
+        dir_hash="$(find "/.mat/.store/$pkg" -type f -exec sha1sum {} \; | awk '{ print $1 }' | sort | \
             sha1sum | awk '{ print $1 }')"
         sed -i "s/^\($pkg\).*$/\1-$dir_hash/" /.mat/pkgs
     }
 
     move_dir() {
         pkg_hash="$1"
-
         pkg="$(sed "s/^\(.*\)-.*/\1/" <<< "$@")"
+
         mv "/.mat/.store/$pkg" "/.mat/.store/$pkg_hash"
     }
 
@@ -100,7 +100,7 @@ verify_store() {
     verify_package() {
         pkg="$1"
         pre_hash="$(sed "s/^.*-\(.*\)/\1/" <<< "$@")"
-        dir_hash="$(find ".store/$pkg" -type f -exec sha1sum {} \; | awk '{ print $1 }' | sort | \
+        dir_hash="$(find "/.mat/.store/$pkg" -type f -exec sha1sum {} \; | awk '{ print $1 }' | sort | \
             sha1sum | awk '{ print $1 }')"
 
         if [[ ! "$pre_hash" == "$dir_hash" ]]; then
@@ -110,7 +110,7 @@ verify_store() {
 
     export -f verify_package
 
-    find . -maxdepth 1 -type f -name "pkgs*" | xargs cat | sort -u | grep -v "^filesystem" | \
+    find /.mat -maxdepth 1 -type f -name ".pkgs*" | xargs cat | sort -u | grep -v "^filesystem" | \
         xargs -n1 -P"$(("$(nproc --all)"**2))" bash -c 'verify_package "$@"' _
 
     unset -f verify_package
@@ -125,6 +125,7 @@ create_custom_content_pkg() {
 
     cp -l --parents /usr/share/glib-2.0/schemas/*compiled* /.mat/custom_content 2>/dev/null || \
         rm -rf /.mat/custom_content/usr/share/glib-2.0/schemas/*compiled* && \
+        cp -l --parents /usr/share/glib-2.0/schemas/*compiled* /.mat/custom_content 2>/dev/null || \
         cp -fax --parents /usr/share/glib-2.0/schemas/*compiled* /.mat/custom_content
 
     rsync -aHlx --link-dest=../../../custom_content/usr /.mat/custom_content/usr/ "/.mat/.store/$custom_content/usr/"

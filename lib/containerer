@@ -16,15 +16,15 @@ pull_image() {
 }
 
 update_store() {
-    if [[ -f .current && "$(cat .current)" != "" ]]; then
+    if [[ -f /.mat/.current && "$(cat /.mat/.current)" != "" ]]; then
         printf "Cleaning up failed packages...\n"
-        cat .current | xargs -I{} -P"$(("$(nproc --all)"/2))" \
-            rm -rf .store/{}
-        echo "" > .current
+        cat /.mat/.current | xargs -I{} -P"$(("$(nproc --all)"/2))" \
+            rm -rf /.mat/.store/{}
+        echo "" > /.mat/.current
     fi
 
-    if [[ ! -d .store ]]; then
-        mkdir .store
+    if [[ ! -d /.mat/.store ]]; then
+        mkdir /.mat/.store
     fi
 
     SOURCE_IMAGE="$1"
@@ -33,20 +33,20 @@ update_store() {
     podman create --name mat-tmp "$SOURCE_IMAGE"
     CMOUNT="$(podman mount mat-tmp)"
 
-    cp -fa "$CMOUNT/.mat/pkgs" "pkgs$deployment"
+    cp -fa "$CMOUNT/.mat/pkgs" "/.mat/.pkgs$deployment"
 
     install_package() {
         package="$1"
-        if [[ ! -d ".store/$package" ]]; then
+        if [[ ! -d "/.mat/.store/$package" ]]; then
             printf "Storing package $package...\n"
-            rsync -aHlx "$CMOUNT/.mat/.store/$package" .store/ || :
+            rsync -aHlx "$CMOUNT/.mat/.store/$package" /.mat/.store/ || :
         fi
     }
 
     export -f install_package
     export CMOUNT
 
-    cat "pkgs$deployment" | xargs -n1 -P"$(("$(nproc --all)"**2))" \
+    cat "/.mat/.pkgs$deployment" | grep -v "^filesystem" | xargs -n1 -P"$(("$(nproc --all)"**2))" \
         bash -c 'install_package "$@"' _
 
     unset -f install_package

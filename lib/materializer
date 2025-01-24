@@ -5,34 +5,38 @@ generate_deployment() {
     deployment="$1"
 
     install_package() {
-        rsync -aAHlXx --link-dest="../.store/$1" ".store/$1/" \
-            "staging/" 2>/dev/null || :
+        rsync -aAHlXx --link-dest="../.store/$1" "$PREFIX/.mat/.store/$1/" \
+            "$PREFIX/.mat/staging/" 2>/dev/null || :
     }
 
     export -f install_package
 
     printf "Installing deployment...\n"
-    cat "pkgs$deployment" | grep -v "^filesystem" | xargs -n1 -P"$(("$(nproc --all)"**2))" \
+    cat "$PREFIX/.mat/.pkgs$deployment" | grep -v "^filesystem" | xargs -n1 -P"$(("$(nproc --all)"**2))" \
         bash -c 'install_package "$@"' _
 
     unset -f install_package
 
-    mkdir -p "staging/usr/local"
-    cp -rfa "/etc" "staging" || :
-    rm "staging/etc/resolv.conf"
-    ln -sf "/run/systemd/resolve/stub-resolv.conf" "staging/etc/resolv.conf" || :
+    mkdir -p "$PREFIX/.mat/staging/usr/local"
+    cp -rfa "$PREFIX/etc" "$PREFIX/.mat/staging" || :
+    rm "$PREFIX/.mat/staging/etc/resolv.conf"
+    ln -sf "$PREFIX/run/systemd/resolve/stub-resolv.conf" "$PREFIX/.mat/staging/etc/resolv.conf" || :
 
-    echo "$deployment" > "staging/usr/.mat_dep"
+    chcon -t usr_t "$PREFIX/.mat/staging/usr" &>/dev/null
+    chcon -t etc_t "$PREFIX/.mat/staging/etc" &>/dev/null
+
+    echo "$deployment" > "$PREFIX/.mat/staging/usr/.mat_dep"
 }
 
 relabel_store() {
     deployment="$1"
 
-    selinux_policy="$(cat /.mat/pkgs | grep "selinux-policy-targeted*" | tail -n1)"
+    selinux_policy="$(cat "/.mat/.pkgs$1" | grep "selinux-policy-targeted*" | tail -n1)"
 
     printf "Relabeling deployment %s packages...\n" "$deployment"
 
-    cat /.mat/pkgs | grep -v "^filesystem" | xargs -I{} -n1 -P"$(("$(nproc --all)"**2))" \
+    cat "/.mat/.pkgs$1" | grep -v "^filesystem" | xargs -I{} -n1 -P"$(("$(nproc --all)"**2))" \
         setfiles -r /.mat/.store/{} \
-        "/.mat/.store/$selinux_policy/etc/selinux/targeted/contexts/files/file_contexts" /.mat/.store/{}
+        "/.mat/.store/$selinux_policy/etc/selinux/targeted/contexts/files/file_contexts" \
+        /.mat/.store/{} &>/dev/null
 }
