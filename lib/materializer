@@ -4,24 +4,30 @@ set -oue pipefail
 generate_deployment() {
     deployment="$1"
 
-    read -ra pkg_list <<< "$(cat "$PREFIX"/.mat/.pkgs"$deployment" | tr "\n" " ")"
+    install_package() {
+        printf "Installing package $1...\n"
+        rsync -aHlx --link-dest="../.store/$1-$2" ".store/$1-$2/" \
+            "staging/" 2>/dev/null || :
+    }
 
-    for package in "${pkg_list[@]}"; do
-        printf "Installing package $package...\n"
-        rsync -aHlx --link-dest="../.store/$package" "$PREFIX/.mat/.store/$package/" "$PREFIX/.mat/staging/" 2>/dev/null || :
-    done
+    export -f install_package
 
-    mkdir -p "$PREFIX/.mat/staging/usr/local"
-    cp -rfa "$PREFIX/etc" "$PREFIX/.mat/staging" || :
-    rm "$PREFIX/.mat/staging/etc/resolv.conf"
-    ln -sf "$PREFIX/run/systemd/resolve/stub-resolv.conf" "$PREFIX/.mat/staging/etc/resolv.conf" || :
+    cat pkgs | grep -v "^filesystem" | xargs -n2 -P"$(("$(nproc --all)"**2))" \
+        bash -c 'install_package "$@"' _
 
-    echo "$deployment" > "$PREFIX/.mat/.staging"
+    unset -f install_package
+
+    mkdir -p "staging/usr/local"
+    cp -rfa "/etc" "staging" || :
+    rm "staging/etc/resolv.conf"
+    ln -sf "/run/systemd/resolve/stub-resolv.conf" "staging/etc/resolv.conf" || :
+
+    echo "$deployment" > "staging/usr/.dep"
 }
 
 relabel_deployment() {
     printf "Relabeling staging tree for SELinux...\nThis might take a minute...\n"
-    setfiles -r "$PREFIX/.mat/staging" "$PREFIX/.mat/staging/etc/selinux/targeted/contexts/files/file_contexts" "$PREFIX/.mat/staging" &>/dev/null
+    setfiles -r "staging" "staging/etc/selinux/targeted/contexts/files/file_contexts" "staging" &>/dev/null
 }
 
 relabel_store() {

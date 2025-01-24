@@ -2,79 +2,117 @@
 set -oue pipefail
 
 populate_store() {
-    if [[ -f /.mat/.current && "$(cat /.mat/.current)" != "" ]]; then
-        failed="$(cat /.mat/.current)"
-        printf "Cleaning up $failed...\n"
-        rm -rf "./.store/${failed:?}"
+    if [[ -f .current && "$(cat .current)" != "" ]]; then
+        failed="$(cat .current)"
+        printf "Cleaning up failed packages...\n"
+        cat .current | xargs -I{} -P"$(("$(nproc --all)"/2))" \
+            rm -rf .store/{}
         echo "" > ./.current
     fi
 
-    if [[ ! -d /.mat/.store ]]; then mkdir -p /.mat/.store || (printf "Couldn't create store." && exit 1); fi
+    if [[ ! -d .store ]]; then mkdir -p .store ||
+        { printf "Couldn't create store." && exit 1 ; } ; fi
 
-    rpm -qa | sort > /.mat/.pkgs
-    read -ra packages <<< "$(rpm -qa | tr "\n" " ")"
+    store_path() {
+        rpm_file_path="$1"
+        
+        parent_dir="$(cut -d/ -f2 <<< "$rpm_file_path")"
+        file_path="$rpm_file_path"
 
-    for PACKAGE in "${packages[@]}"; do
-        printf "Storing $PACKAGE...\n"
-        if [[ ! -d "/.mat/.store/$PACKAGE" && "$PACKAGE" != "filesystem"* ]]; then
-            read -ra pkg_files <<< "$(rpm -ql "$PACKAGE" | grep -v ".build-id" | tr "\n" " ")"
-            echo "$PACKAGE" > /.mat/.current
-            mkdir -p "/.mat/.store/$PACKAGE"
-
-            for rpm_file_path in "${pkg_files[@]}"; do
-                parent_dir="$(cut -d/ -f2 <<< "$rpm_file_path")"
-                file_path="$rpm_file_path"
-
-                if [[ "$parent_dir" =~ bin|lib|lib64 ]]; then
-                    file_path="/usr$rpm_file_path"
-                elif [[ "$parent_dir" =~ usr|etc ]]; then
-                    :
-                else
-                    continue
-                fi
-
-                if [[ ! -d "$file_path" ]]; then
-                    mkdir -p "/.mat/.store/$PACKAGE$(dirname "$file_path")" 2>/dev/null || :
-                    ln "$file_path" "/.mat/.store/$PACKAGE$file_path" 2>/dev/null ||
-                        cp -fax --update=none "$file_path" "/.mat/.store/$PACKAGE$file_path" 2>/dev/null || :
-                fi
-            done
-            echo "" > /.mat/.current
+        if [[ "$parent_dir" =~ bin|lib|lib64 ]]; then
+            file_path="/usr$rpm_file_path"
+        elif [[ "$parent_dir" =~ usr|etc ]]; then
+            :
         else
-            printf "\tAlready present!\n\n"
+            return
         fi
-    done
+
+        if [[ ! -d "$file_path" ]]; then
+            mkdir -p ".store/$PACKAGE$(dirname "$file_path")" 2>/dev/null || :
+            ln "$file_path" ".store/$PACKAGE$file_path" 2>/dev/null ||
+                cp -fax --update=none "$file_path" ".store/$PACKAGE$file_path" 2>/dev/null || :
+        fi
+    }
+
+    store_package() {
+        PACKAGE="$1"
+
+        if [[ ! -d ".store/$PACKAGE"* && "$PACKAGE" != "filesystem"* ]]; then
+            printf "Storing $PACKAGE\n"
+            echo "$PACKAGE" >> .current
+            mkdir -p ".store/$PACKAGE"
+
+            export PACKAGE
+
+            rpm -ql "$PACKAGE" | grep -v ".build-id" | \
+                xargs -n1 -P"$(("$(nproc --all)"/2))" \
+                bash -c 'store_path "$@"' _
+
+            sed -i "s/^$PACKAGE//" .current
+            unset PACKAGE
+        fi
+    }
+
+    rpm -qa | sort > pkgs
+    export -f store_package
+    export -f store_path
+
+    cat pkgs | xargs -n1 -P"$(("$(nproc --all)"/2))" \
+        bash -c 'store_package "$@"' _
+
+    unset -f store_package
+    unset -f store_path
+}
+
+hash_store() {
+    hash_dir() {
+        pkg="$1"
+
+        dir_hash="$(tar cf - ".store/$pkg" | sha1sum | awk '{ print $1 }')"
+        sed -i "s/^\($pkg\).*$/\1-$dir_hash/" pkgs
+    }
+
+    export -f hash_dir
+
+    cat pkgs | grep -v "^filesystem" | awk '{ print $1 }' | \
+        xargs -n1 -P1 \
+        bash -c 'hash_dir "$@"' _
+
+    unset -f hash_dir
+}
+
+verify_store() {
+    verify_package() {
+        :
+    }
+
+    find . -maxdepth 1 -type f -name "pkgs*" | xargs cat | sort -u
 }
 
 create_custom_content_pkg() {
-    if [[ -f /.mat/.current && "$(cat /.mat/.current)" != "" ]]; then
-        failed="$(cat /.mat/.current)"
-        printf "Cleaning up $failed...\n"
-        rm -rf "./.store/${failed:?}"
-        echo "" > ./.current
-    fi
-
     custom_content="custom_content-$(sha256sum <<< "$RANDOM" | cut -d' ' -f1)"
     printf "Storing $custom_content...\n"
-    echo "$custom_content" > /.mat/.current
-    mkdir -p "/.mat/.store/$custom_content/usr"
-    mkdir -p "/.mat/.store/$custom_content/etc"
+    echo "$custom_content" >> .current
+    mkdir -p ".store/$custom_content/usr"
+    mkdir -p ".store/$custom_content/etc"
 
-    cp -l --parents /usr/share/glib-2.0/schemas/*compiled* /.mat/custom_content
+    cp -l --parents /usr/share/glib-2.0/schemas/*compiled* custom_content || \
+        rm -rf custom_content/usr/share/glib-2.0/schemas/*compiled* && \
+        cp -fax --parents /usr/share/glib-2.0/schemas/*compiled* custom_content
 
-    rsync -aHlx --link-dest=../../../custom_content/usr /.mat/custom_content/usr/ "/.mat/.store/$custom_content/usr/"
-    rsync -aHlx --link-dest=../../../custom_content/etc /.mat/custom_content/etc/ "/.mat/.store/$custom_content/etc/"
+    rsync -aHlx --link-dest=../../../custom_content/usr custom_content/usr/ ".store/$custom_content/usr/"
+    rsync -aHlx --link-dest=../../../custom_content/etc custom_content/etc/ ".store/$custom_content/etc/"
 
-    read -ra bin_files <<< "$(find /.mat/.store/$custom_content/usr/bin)"
+    read -ra bin_files <<< "$(find .store/$custom_content/usr/bin)"
     for file_path in "${bin_files[@]}"; do
         chmod +x "$file_path"
     done
 
-    read -ra libexec_files <<< "$(find /.mat/.store/$custom_content/usr/libexec)"
+    read -ra libexec_files <<< "$(find .store/$custom_content/usr/libexec)"
     for file_path in "${libexec_files[@]}"; do
         chmod +x "$file_path"
     done
 
-    echo "$custom_content" >> /.mat/.pkgs
-    echo "" > /.mat/.current
+    echo "$custom_content" >> pkgs
+    sed -i "s/^$custom_content//" .current
 }

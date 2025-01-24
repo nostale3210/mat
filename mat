@@ -42,6 +42,9 @@ case "$1" in
         populate_store
         create_custom_content_pkg
         ;;
+    hash)
+        hash_store
+        ;;
     exch)
         swap_dep
         ;;
