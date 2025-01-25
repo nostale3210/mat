@@ -1,7 +1,5 @@
-.current
-.pkgs*
-.store
 staging
+files
 cosign.private
 pkgs
 pkgs*
