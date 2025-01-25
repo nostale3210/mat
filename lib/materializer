@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -oue pipefail
 
 generate_deployment() {
     deployment="$1"
@@ -25,9 +24,11 @@ generate_deployment() {
     ln -sf "$PREFIX/run/systemd/resolve/stub-resolv.conf" "$PREFIX/.mat/staging/etc/resolv.conf" || :
 
     chcon -t usr_t "$PREFIX/.mat/staging/usr" &>/dev/null
+    chcon -t usr_t "$PREFIX/.mat/staging/usr/local" &>/dev/null
     chcon -t etc_t "$PREFIX/.mat/staging/etc" &>/dev/null
 
     echo "$deployment" > "$PREFIX/.mat/staging/usr/.mat_dep"
+    echo "$deployment" > "$PREFIX/.mat/staging/usr/.ald_dep"
 
     lock_image_storage l
 }

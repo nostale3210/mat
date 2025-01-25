@@ -19,6 +19,7 @@ bins=(
     "mount"
     "mountpoint"
     "mv"
+    "nproc"
     "printf"
     "rm"
     "rsync"

@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -oue pipefail
 
 swap_dep() {
     if [[ ! -d "$PREFIX/.mat/staging" ]]; then
@@ -17,6 +16,7 @@ swap_dep() {
     lock_usr l
     lock_root_dir l
     lock_image_storage l
+    mount -o bind,rw "$PREFIX/usr/local" "$PREFIX/usr/local"
 }
 
 clear_staging() {

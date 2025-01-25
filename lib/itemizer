@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -oue pipefail
 
 populate_store() {
     if [[ -f /.mat/.current && "$(cat /.mat/.current)" != "" ]]; then

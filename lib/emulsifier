@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
-set -oue pipefail
 
 get_unused_packages() {
     read -ra pkg_files <<< "$(find /.mat -maxdepth 1 -type f -name ".pkgs*" | tr "\n" " ")"
 
     depl_pkgs="$(cat "${pkg_files[@]}" | sort -u)"
-    store_pkgs="$(find /.mat/.store -maxdepth 1 -type d ! -path ".store" | cut -d/ -f3 | sort)"
+    store_pkgs="$(find /.mat/.store -maxdepth 1 -type d ! -path ".store" | cut -d/ -f4 | sort)"
 
     echo -e "$depl_pkgs\n$store_pkgs" | sort | uniq -u | grep -v "filesystem-.*"
 }

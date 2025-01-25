@@ -17,7 +17,7 @@ active_boot=$(cat "$sysroot/usr/.mat_dep" 2>/dev/null)
     mount -o remount,rw "$sysroot" && \
     (mount -o bind,ro "$sysroot/usr" "$sysroot/usr" || printf "Couldn't bind mount /usr\n") && \
     (mount -o bind,rw "$sysroot/usr/local" "$sysroot/usr/local" || printf "Couldn't bind mount /usr/local\n") && \
-    (mountpoint "$sysroot/.ald" >/dev/null 2>&1 || mount -o bind,ro "$sysroot/.ald" "$sysroot/.ald") && \
+    (mountpoint "$sysroot/.mat" >/dev/null 2>&1 || mount -o bind,ro "$sysroot/.mat" "$sysroot/.mat") && \
     (chattr +i "$sysroot/" || printf "Couldn't lock /.\n") && \
     exit 0
 

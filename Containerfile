@@ -1,4 +1,4 @@
-FROM ghcr.io/nostale3210/timesinkc-cosmic-nvidia:latest AS build
+FROM ghcr.io/nostale3210/timesinkc-cosmic-nvidia:latest
 
 COPY mat /usr/bin/mat
 COPY lib/ /usr/lib/mat/
