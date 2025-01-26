@@ -8,10 +8,6 @@ populate_store() {
         if file_hash="$(cksum -a blake2b --untagged "$file_path" 2>/dev/null)"; then
             test -L "$file_path" && file_hash="l$file_hash"
 
-            # if [[ ! -f ".store/deep/${file_hash%% *}" ]]; then
-            #     link "$file_path" ".store/deep/${file_hash%% *}" 2>/dev/null ||
-            #         cp -fax --update=none "$file_path" ".store/deep/${file_hash%% *}" 2>/dev/null || :
-            # fi
             printf "$file_hash\0" >> files
         fi
     }
