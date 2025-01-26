@@ -4,7 +4,7 @@ get_unused_packages() {
     read -ra files <<< "$(find /.mat -maxdepth 1 -type f -name ".[0-9]*" | sed -z "s/^.\///")"
 
     depl_pkgs="$(cat "${files[@]}" | tr -s " " | cut -z -d" " -f1 | tr "\0" "\n")"
-    store_pkgs="$(find /.mat/.store/deep -maxdepth 1 ! -type d | cut -d/ -f3)"
+    store_pkgs="$(find /.mat/.store/deep -maxdepth 1 ! -type d | cut -d/ -f5)"
 
     comm -13 <(sort -u <<< "$depl_pkgs") <(sort <<< "$store_pkgs")
 }
@@ -15,13 +15,14 @@ prune_unused_packages() {
     prune_path() {
         path="$1"
 
-        printf "Pruning $path...\n"
         rm -rf "/.mat/.store/deep/$path"
     }
 
     prune_paths() {
         xargs -n1 -P"$(("$(nproc --all)"/2))" bash -c 'prune_path "$@"' _ <<< "$@"
     }
+
+    pprint "Pruning unused store paths..."
 
     export -f prune_path
     export -f prune_paths

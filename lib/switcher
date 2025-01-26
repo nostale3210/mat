@@ -6,8 +6,7 @@ swap_dep() {
     current="${current:-0}"
 
     if [[ ! -d "$PREFIX/.mat/.store/surface/$deployment" ]]; then
-        printf "No staging tree!\n"
-        exit 1
+        iprint "No staging deployment!" && exit 1
     fi
 
     lock_image_storage u

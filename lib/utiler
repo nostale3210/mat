@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+
+pprint() {
+    if [[ "$tput_support" == "y" ]]; then
+        echo "$1" > "$locsync"
+    else
+        printf "%s\n" "$1"
+    fi
+}
+
+
+iprint() {
+    if [[ "$tput_support" == "y" ]]; then
+        printf "\e[2K\r[Info] %s\n" "$1"
+    else
+        printf "[Info] %s\n" "$1"
+    fi
+}
+
+
+clean_draw() {
+    echo "" > "$locsync"
+    sleep 0.2
+    kill "$(jobs -p)" 2>/dev/null
+    rm "$locsync" &>/dev/null
+    printf "\e[2K\r\e[?25h"
+    return 0
+}
+
+
+draw_bar() {
+    printf "\e[?25l"
+    local locsync="$1"
+    while true; do
+        while [[ -z "$(cat "$locsync")" ]]; do sleep 1; done
+        for status in "|" "/" "-" "\\"; do
+            printf "\e[2K\r[%s] %s" "$status" "$(cat "$locsync")"
+            sleep 0.1
+        done
+    done
+}
+
+fail_ex() {
+    printf "\n\033[31;1mCritical Failure!\033[0m\n%s\n\n" "$2"
+
+    if [[ ! "$(cat "/usr/.mat_dep")" == "$1" && ! "$1" == "-1" ]]; then
+        pprint "Attempting cleanup..."
+        podman rm mat-tmp &>/dev/null
+        rm -rf "/.mat/.store/surface/${1:?}"
+        rm -rf "/.mat/.${1:?}"
+        rm -rf "/boot/${1:?}"
+        rm -rf "/boot/loader/entries/${1:?}.conf"
+    fi
+
+    mountpoint /usr &>/dev/null || { mount -o bind,ro /usr /usr && mount -o bind,rw /usr/local /usr/local ; }
+    mountpoint /.mat &>/dev/null || mount -o bind,ro /.mat /.mat
+    exit 1
+}

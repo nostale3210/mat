@@ -37,6 +37,8 @@ update_store() {
         fi
     }
 
+    pprint "Updating store with files for $1..."
+
     export -f install_path
     export CMOUNT
 

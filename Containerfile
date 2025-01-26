@@ -21,7 +21,7 @@ RUN bash dep_check && \
 RUN chmod +x /usr/bin/mat && \
     chmod +x /usr/libexec/mat-boot.sh
 
-RUN sed -i "s/tsd upgrade/:/g" /usr/libexec/sys-up && \
+RUN sed -i "s/tsd upgrade/mat new -up -se -apply -gc/g" /usr/libexec/sys-up && \
     sed -i "s/\"bootc\"/\"mat\"/g" /usr/libexec/sys-up
 
 RUN chmod 4755 /usr/bin/newgidmap && \

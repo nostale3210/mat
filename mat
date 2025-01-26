@@ -10,7 +10,7 @@ done
 export PREFIX=""
 CONTAINER_URL="ghcr.io/nostale3210/timesinkc-cosmic-nvidia-mat:latest"
 
-if [[ "$@" == *"--init"* ]]; then export PREFIX="${@: -1}"; fi
+if [[ "$*" == *"--init"* ]]; then export PREFIX="${@: -1}"; fi
 
 if systemd-inhibit --who="mat" --what="idle" sleep 0.01 &>/dev/null && [[ "$(id -u)" == "0" ]]; then
     if { systemd-inhibit --list | grep -q mat-rootful-ops ; }; then
@@ -26,11 +26,25 @@ if [[ "$(id -u)" == "0" ]]; then
     [[ ! -f "$PREFIX/etc/mat/.mat.lock" ]] && \
         mkdir -p "$PREFIX/etc/mat" && touch "$PREFIX/etc/mat/.mat.lock"
 
-    exec {MAT_LOCK}<>"$PREFIX/etc/mat/.mat.lock" || \
-        { printf "Couldn't set lock fd.\n" && exit 1 ; }
+    if (infocmp 2>/dev/null | grep -q smcup) &&
+        (infocmp 2>/dev/null | grep -q rmcup); then
+            tput_support="y";
+        else
+            tput_support="n";
+    fi
 
-    printf "Acquiring lock...\n"
-    flock -x "$MAT_LOCK" || { printf "Couldn't acquire lock!\n" ; }
+    if [[ "$tput_support" == "y" ]]; then
+        locsync="/dev/shm/sync$$"
+        echo "" > "$locsync"
+        trap clean_draw 0
+        draw_bar "$locsync" &
+    fi
+
+    exec {MAT_LOCK}<>"$PREFIX/etc/mat/.mat.lock" || \
+        { fail_ex "-1" "Couldn't set lock fd." ; }
+
+    pprint "Acquiring lock..."
+    flock -x "$MAT_LOCK"
 fi
 
 case "$1" in
@@ -73,7 +87,16 @@ case "$1" in
     clear)
         clear_staging
         ;;
+    status)
+        show_status "${2-}" "${3-}"
+        ;;
+    rm)
+        rm_dep "$2"
+        ;;
+    new)
+        new_dep "$@"
+        ;;
     *)
-        echo default
+        iprint "$1: Not a known subcommand"
         ;;
 esac

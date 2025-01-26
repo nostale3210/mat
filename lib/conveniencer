@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+
+new_dep() {
+    pprint "Retrieving vars..."
+    current_id="$(cat "/usr/.mat_dep")"
+    max_id="$(find /.mat -maxdepth 1 -type f -name ".[0-9]*" | awk -F'.' '{print $NF}' | sort -n | tail -n1)"
+    max_id="$(echo "$current_id" "$max_id" | tr " " "\n" | sort -n | tail -n1)"
+    next_id="$((max_id+1))"
+
+    pprint ""
+    if [[ "$*" == *"-up"* ]]; then pull_image; fi
+
+    update_store "$CONTAINER_URL" "$next_id"
+
+    generate_deployment "$next_id"
+
+    if [[ "$*" == *"-se"* ]]; then relabel_store "$next_id"; fi
+
+    sync_config "$next_id" "${RESET_CONF-}"
+
+    gen_boot "$next_id"
+
+    if [[ "$*" == *"-se"* ]]; then relabel_boot; fi
+
+    if [[ "$*" == *"-apply"* ]]; then swap_dep "$next_id"; fi
+
+    if [[ "$*" == *"-gc"* ]]; then rm_deps && prune_unused_packages; fi
+}

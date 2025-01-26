@@ -12,20 +12,17 @@ generate_deployment() {
         link "/.mat/.store/deep/${1%% *}" "/.mat/.store/surface/$deployment${1##* }" 2>/dev/null || :
     }
 
+    pprint "Materializing deployment $deployment..."
+
     export -f install_path
     export deployment
 
-    printf "Installing deployment...\n"
     cat "/.mat/.$deployment" | xargs -0 -n1 -P"$(("$(nproc --all)"**2))" \
         bash -c 'install_path "$@"' _
 
     unset -f install_path
 
     mkdir -p "/.mat/.store/surface/$deployment/usr/local"
-    cp -rfa "/etc" "/.mat/.store/surface/$deployment" || :
-    rm "/.mat/.store/surface/$deployment/etc/resolv.conf"
-    ln -sf "/run/systemd/resolve/stub-resolv.conf" \
-        "/.mat/.store/surface/$deployment/etc/resolv.conf" || :
 
     echo "$deployment" > "/.mat/.store/surface/$deployment/usr/.mat_dep"
     echo "$deployment" > "/.mat/.store/surface/$deployment/usr/.ald_dep"
@@ -33,12 +30,32 @@ generate_deployment() {
     lock_image_storage l
 }
 
+sync_config() {
+    deployment="$1"
+
+    if [[ "$2" == "--drop" ]]; then
+        pprint "Syncing minimal config..."
+        cp -rfa --parents /etc/fstab /etc/crypttab /etc/locale.conf /etc/localtime /etc/adjtime \
+            /etc/sudoers.d /etc/group /etc/gshadow /etc/subgid /etc/subuid \
+            /etc/NetworkManager/system-connections /etc/vconsole.conf /etc/pki \
+            /etc/firewalld /etc/environment /etc/hostname \
+            /etc/X11/xorg.conf.d/00-keyboard.conf /etc/sudoers /etc/ald \
+            "/.mat/.store/surface/$deployment/" || fail_ex "$deployment" "Resetting /etc failed."
+    else
+        pprint "Syncing local config..."
+        cp -rfa "/etc" "/.mat/.store/surface/$deployment" || :
+        rm "/.mat/.store/surface/$deployment/etc/resolv.conf"
+        ln -sf "/run/systemd/resolve/stub-resolv.conf" \
+            "/.mat/.store/surface/$deployment/etc/resolv.conf" || :
+    fi
+}
+
 relabel_store() {
     deployment="$1"
 
     lock_image_storage u
 
-    printf "Relabeling deployment %s...\n" "$deployment"
+    pprint "Relabeling deployment "$deployment"..."
 
     setfiles -F -T 0 -r "/.mat/.store/surface/$deployment" \
         "/.mat/.store/surface/$deployment/etc/selinux/targeted/contexts/files/file_contexts" \

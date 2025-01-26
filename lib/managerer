@@ -1,3 +1,60 @@
 #!/usr/bin/env bash
 
+show_status() {
+    read -ra available_deployments <<< "$(find /.mat/.store/surface -maxdepth 1 -type d -name "[0-9]*" | awk -F'/' '{print $NF}' | sort -nr | tr "\n" " ")"
+    depl_version="$(grep ^VERSION= < "/usr/lib/os-release" | cut -d'=' -f2)"
+    depl_name="$(grep ^NAME= < "/usr/lib/os-release" | cut -d'=' -f2)"
 
+    printf "\033[1mCurrently active deployment:\033[0m\n\n"
+    printf "\t\033[1m\033[4m%s\033[0m\t\u2500\u2500\u2500\tName: %s\n" "$(cat "/usr/.mat_dep")" "$depl_name"
+    printf "\t\t\tVersion: %s\n" "$depl_version"
+    printf "\t\t\tKernel: \"%s\"\n\n\n" "$(find "/usr/lib/modules" -maxdepth 1 -type d | sort | tail -n1 | awk -F'/' '{ print $NF }')"
+
+    printf "\033[1mOther available deployments:\033[0m\n\n"
+    for depl in "${available_deployments[@]}"; do
+        depl_version="$(grep ^VERSION= < "/.mat/.store/surface/$depl/usr/lib/os-release" | cut -d'=' -f2)"
+        depl_name="$(grep ^NAME= < "/.mat/.store/surface/$depl/usr/lib/os-release" | cut -d'=' -f2)"
+        printf "\t\033[1m%s\033[0m\t\u2500\u2500\u2500\tName: %s\n" "$depl" "$depl_name"
+        printf "\t\t\tVersion: %s\n" "$depl_version"
+        printf "\t\t\tKernel: \"%s\"\n\n" "$(find "/.mat/.store/surface/$depl/usr/lib/modules" -maxdepth 1 -type d | sort | tail -n1 | awk -F'/' '{ print $NF }')"
+    done
+}
+
+show_updates() {
+    rpm --version &>/dev/null || fail_ex "-1" "Currently only rpm-based systems are supported."
+    if [[ "$(find /.mat/.store/surface -maxdepth 1 -type d -printf "%P ")" != *"$1"* && "$1" != "$(cat "/usr/.mat_dep")" ]]; then
+        fail_ex "-1" "No such deployment: $1."
+    elif [[ "$(find /.mat/.store/surface -maxdepth 1 -type d -printf "%P ")" != *"$2"* && "$2" != "$(cat "/usr/.mat_dep")" ]]; then
+        fail_ex "-1" "No such deployment: $2."
+    fi
+    FALLBACK="$(find /.mat/.store/surface -maxdepth 1 -type d -name "[0-9]*" | awk -F'/' '{print $NF}' | sort -n | tail -n1)"
+    if [[ -n "$1" && "$1" != "$(cat "/usr/.mat_dep")" ]]; then OLD_DEP="/.mat/.store/surface/$1"; else OLD_DEP="/.mat/.store/surface/$FALLBACK"; fi
+    if [[ -n "$2" && "$2" != "$(cat "/usr/.mat_dep")" ]]; then NEW_DEP="/.mat/.store/surface/$2"; else NEW_DEP="/"; fi
+    printf "Comparing %s and %s:" "$OLD_DEP" "$NEW_DEP"
+    rpm -qa --root="$OLD_DEP" | sort > "$HOME/.old" || { rm "$HOME/.old" && fail_ex "-1" "Couldn't retrieve packages from $OLD_DEP."; }
+    rpm -qa --root="$NEW_DEP" | sort > "$HOME/.new" || { rm "$HOME/"{.old,.new} && fail_ex "-1" "Couldn't retrieve packages from $NEW_DEP."; }
+    diff -y "$HOME/.old" "$HOME/.new" | grep "|\|>\|<" || pprint "There doesn't seem to be a difference bewteen $OLD_DEP and $NEW_DEP."
+    rm "$HOME/"{.old,.new} || iprint "Failed to delete temporary files."
+}
+
+rm_dep() {
+    lock_image_storage u
+
+    pprint "Removing deployment $1..."
+    if [[ "$(find /.mat/.store/surface -maxdepth 1 -type d -printf "%P ")" != *"$1"* || -z $1 ]]; then
+        fail_ex "-1" "Deployment $1 doesn't exist or isn't removable."
+    fi
+
+    rm -rf "/.mat/.store/surface/$1" || iprint "Removing /.mat/.store/surface/$1 failed, manual intervention might be necessary."
+    rm -rf "/.mat/.$1" || iprint "Removing /.mat/.$1 failed, manual intervention might be necessary."
+    rm -rf "/boot/$1" || iprint "Removing /boot/$1 failed, manual intervention might be necessary."
+    rm -rf "/boot/loader/entries/$1.conf" || iprint "Removing /boot/loader/entries/$1.conf failed, manual intervention might be necessary."
+
+    lock_image_storage l
+}
+
+rm_deps() {
+    while [[ "$(find /.mat/.store/surface -maxdepth 1 -type d -name "[0-9]*" | awk -F'/' '{print $NF}' | sort -nr | wc -l)" -gt "$((3))" ]]; do
+        rm_dep "$(find /.mat/.store/surface -maxdepth 1 -type d -name "[0-9]*" | awk -F'/' '{print $NF}' | sort -n | head -n1)"
+    done
+}

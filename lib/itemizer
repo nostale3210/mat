@@ -12,9 +12,10 @@ populate_store() {
         fi
     }
 
+    pprint "Storing files by hash..."
+
     export -f store_path
 
-    printf "Storing files by hash...\n"
     printf "" > files
     find /{usr,etc} ! -type d -print0 | shuf -z | xargs -0 -n1 -P"$(("$(nproc --all)"**2))" \
         bash -c 'store_path "$@"' _

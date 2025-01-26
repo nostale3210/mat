@@ -20,6 +20,7 @@ install() {
     dracut_install /usr/libexec/mat-boot.sh
     dracut_install /usr/lib/mat/switcher
     dracut_install /usr/lib/mat/locker
+    dracut_install /usr/lib/mat/utiler
     dracut_install /usr/bin/mat
 
     inst_simple "${systemdsystemunitdir}/mat-boot.service"
