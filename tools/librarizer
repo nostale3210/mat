@@ -5,30 +5,16 @@ bins=(
     "bash"
     "cat"
     "chattr"
-    "chcon"
-    "cp"
-    "dirname"
-    "echo"
     "exch"
-    "find"
     "flock"
-    "grep"
     "id"
-    "ln"
     "mkdir"
     "mount"
     "mountpoint"
     "mv"
-    "nproc"
     "printf"
-    "rm"
-    "rsync"
+    "touch"
     "umount"
-    "xargs"
-)
-
-sbins=(
-    "setfiles"
 )
 
 libs=()
@@ -38,17 +24,8 @@ for bin in "${bins[@]}"; do
     libs+=( "${tl[@]}" )
 done
 
-for sbin in "${sbins[@]}"; do
-    read -ra tl <<< "$(ldd "/usr/sbin/$sbin" | grep "/" | cut -d"(" -f1 | cut -d">" -f2 |
-        sed "s/^\s*//" | tr "\n" " ")"
-    libs+=( "${tl[@]}" )
-done
-
 echo "$(tr " " "\n" <<< "${libs[@]}" | sort -u | sed "s/^\(.*\)/dracut_install \1/" &&
     printf "\n" &&
     tr " " "\n" <<< "${bins[@]}" | sort -u |
-    sed "s/^\(.*\)/dracut_install \/usr\/bin\/\1/" &&
-    printf "\n" &&
-    tr " " "\n" <<< "${sbins[@]}" | sort -u |
-    sed "s/^\(.*\)/dracut_install \/usr\/sbin\/\1/")" |
+    sed "s/^\(.*\)/dracut_install \/usr\/bin\/\1/")" |
     sed "s/^\(.*\)/    \1/" > drc_libs

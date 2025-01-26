@@ -1,45 +1,36 @@
 #!/usr/bin/env bash
 
 get_unused_packages() {
-    read -ra pkg_files <<< "$(find /.mat -maxdepth 1 -type f -name ".pkgs*" | tr "\n" " ")"
+    read -ra files <<< "$(find /.mat -maxdepth 1 -type f -name ".[0-9]*" | sed -z "s/^.\///")"
 
-    depl_pkgs="$(cat "${pkg_files[@]}" | sort -u)"
-    store_pkgs="$(find /.mat/.store -maxdepth 1 -type d ! -path ".store" | cut -d/ -f4 | sort)"
+    depl_pkgs="$(cat "${files[@]}" | tr -s " " | cut -z -d" " -f1 | tr "\0" "\n")"
+    store_pkgs="$(find /.mat/.store/deep -maxdepth 1 ! -type d | cut -d/ -f3)"
 
-    echo -e "$depl_pkgs\n$store_pkgs" | sort | uniq -u | grep -v "filesystem-.*"
+    comm -13 <(sort -u <<< "$depl_pkgs") <(sort <<< "$store_pkgs")
 }
 
 prune_unused_packages() {
     lock_image_storage u
 
-    if [[ -f /.mat/.current && "$(cat /.mat/.current)" != "" ]]; then
-        failed="$(cat /.mat/.current)"
-        printf "Cleaning up failed packages...\n"
-        cat /.mat/.current | xargs -I{} -P"$(("$(nproc --all)"/2))" rm -rf /.mat/.store/{}
-        echo "" > /.mat/.current
-    fi
+    prune_path() {
+        path="$1"
 
-    prune_pkg() {
-        pkg="$1"
-
-        printf "Pruning $pkg...\n"
-        echo "$pkg" >> /.mat/.current
-        rm -rf "/.mat/.store/$pkg"
-        sed -i "s/^$pkg//" /.mat/.current
+        printf "Pruning $path...\n"
+        rm -rf "/.mat/.store/deep/$path"
     }
 
-    prune_pkgs() {
-        xargs -n1 -P"$(("$(nproc --all)"/2))" bash -c 'prune_pkg "$@"' _ <<< "$@"
+    prune_paths() {
+        xargs -n1 -P"$(("$(nproc --all)"/2))" bash -c 'prune_path "$@"' _ <<< "$@"
     }
 
-    export -f prune_pkg
-    export -f prune_pkgs
+    export -f prune_path
+    export -f prune_paths
 
     get_unused_packages | xargs -n"$(("$(nproc --all)"*2))" -P"$(("$(nproc --all)"/2))" \
-        bash -c 'prune_pkgs "$@"' _
+        bash -c 'prune_paths "$@"' _
 
-    unset -f prune_pkg
-    unset -f prune_pkgs
+    unset -f prune_path
+    unset -f prune_paths
 
     lock_image_storage l
 }
