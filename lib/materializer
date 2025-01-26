@@ -38,14 +38,11 @@ relabel_store() {
 
     lock_image_storage u
 
-    printf "Relabeling deployment %s packages...\n" "$deployment"
+    printf "Relabeling deployment %s...\n" "$deployment"
 
-    find "/.mat/.store/surface/$deployment" -mindepth 2 -maxdepth 2 -print0 | sort -zr | \
-        xargs -0 -I{} -P"$(("$(nproc --all)"/2))" setfiles -r "/.mat/.store/surface/$deployment" \
-        "/.mat/.store/surface/$deployment/etc/selinux/targeted/contexts/files/file_contexts" {} &>/dev/null
-
-    chcon -t usr_t "/.mat/.store/surface/$deployment/usr" &>/dev/null
-    chcon -t etc_t "/.mat/.store/surface/$deployment/etc" &>/dev/null
+    setfiles -F -T 0 -r "/.mat/.store/surface/$deployment" \
+        "/.mat/.store/surface/$deployment/etc/selinux/targeted/contexts/files/file_contexts" \
+        "/.mat/.store/surface/$deployment" &>/dev/null
 
     lock_image_storage l
 }

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 pull_image() {
-    SOURCE_IMAGE="$1"
+    SOURCE_IMAGE="$CONTAINER_URL"
 
     installed_image="$(podman inspect --format '{{.Digest}}' "$SOURCE_IMAGE")"
     remote_image="$(skopeo inspect --format '{{.Digest}}' "docker://$SOURCE_IMAGE")"
@@ -19,7 +19,7 @@ update_store() {
 
     if [[ ! -d /.mat/.store/deep ]]; then
         lock_root_dir u
-        mkdir -p /.mat/.store
+        mkdir -p /.mat/.store/deep
         lock_root_dir l
     fi
 
@@ -33,14 +33,14 @@ update_store() {
 
     install_path() {
         if [[ ! -f "/.mat/.store/deep/${path%% *}" ]]; then
-            cp -fa --update=none "$CMOUNT${1##* }" "/.mat/.store/deep/${1%% *}" 2>/dev/null || :
+            cp -a "$CMOUNT${1##* }" "/.mat/.store/deep/${1%% *}" 2>/dev/null || :
         fi
     }
 
     export -f install_path
     export CMOUNT
 
-    cat ".$deployment" | xargs -0 -n1 -P"$(("$(nproc --all)"**2))" \
+    cat "/.mat/.$deployment" | xargs -0 -n1 -P"$(("$(nproc --all)"**2))" \
         bash -c 'install_path "$@"' _
 
     unset -f install_path
