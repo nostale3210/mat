@@ -1,8 +1,0 @@
-[Unit]
-Description=Upgrade system 1h after boot
-
-[Timer]
-OnBootSec=1h
-
-[Install]
-WantedBy=timers.target
