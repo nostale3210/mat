@@ -33,6 +33,8 @@ generate_deployment() {
 sync_config() {
     deployment="$1"
 
+    lock_image_storage u
+
     if [[ "$2" == "--drop" ]]; then
         pprint "Syncing minimal config..."
         cp -rfa --parents /etc/fstab /etc/crypttab /etc/locale.conf /etc/localtime /etc/adjtime \
@@ -48,6 +50,8 @@ sync_config() {
         ln -sf "/run/systemd/resolve/stub-resolv.conf" \
             "/.mat/.store/surface/$deployment/etc/resolv.conf" || :
     fi
+
+    lock_image_storage l
 }
 
 relabel_store() {

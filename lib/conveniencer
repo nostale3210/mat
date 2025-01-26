@@ -18,7 +18,7 @@ new_dep() {
 
     sync_config "$next_id" "${RESET_CONF-}"
 
-    gen_boot "$next_id"
+    booty_bits "$next_id"
 
     if [[ "$*" == *"-se"* ]]; then relabel_boot; fi
 
