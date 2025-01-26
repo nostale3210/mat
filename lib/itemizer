@@ -1,145 +1,27 @@
 #!/usr/bin/env bash
 
+set -e
+
 populate_store() {
-    if [[ -f /.mat/.current && "$(cat /.mat/.current)" != "" ]]; then
-        printf "Cleaning up failed packages...\n"
-        cat /.mat/.current | xargs -I{} -P"$(("$(nproc --all)"/2))" \
-            rm -rf /.mat/.store/{}
-        echo "" > /.mat/.current
-    fi
-
-    if [[ ! -d /.mat/.store ]]; then mkdir -p /.mat/.store ||
-        { printf "Couldn't create store." && exit 1 ; } ; fi
-
     store_path() {
-        rpm_file_path="$1"
-        
-        parent_dir="$(cut -d/ -f2 <<< "$rpm_file_path")"
-        file_path="$rpm_file_path"
+        file_path="$1"
+        if file_hash="$(cksum -a blake2b --untagged "$file_path" 2>/dev/null)"; then
+            test -L "$file_path" && file_hash="l$file_hash"
 
-        if [[ "$parent_dir" =~ bin|lib|lib64 ]]; then
-            file_path="/usr$rpm_file_path"
-        elif [[ "$parent_dir" =~ usr|etc ]]; then
-            :
-        else
-            return
-        fi
-
-        if [[ ! -d "$file_path" ]]; then
-            mkdir -p "/.mat/.store/$PACKAGE$(dirname "$file_path")" 2>/dev/null || :
-            ln "$file_path" "/.mat/.store/$PACKAGE$file_path" 2>/dev/null ||
-                cp -fax --update=none "$file_path" "/.mat/.store/$PACKAGE$file_path" 2>/dev/null || :
+            # if [[ ! -f ".store/deep/${file_hash%% *}" ]]; then
+            #     link "$file_path" ".store/deep/${file_hash%% *}" 2>/dev/null ||
+            #         cp -fax --update=none "$file_path" ".store/deep/${file_hash%% *}" 2>/dev/null || :
+            # fi
+            printf "$file_hash\0" >> files
         fi
     }
 
-    store_package() {
-        PACKAGE="$1"
-
-        if [[ ! -d "/.mat/.store/$PACKAGE" && "$PACKAGE" != "filesystem"* ]]; then
-            printf "Storing $PACKAGE\n"
-            echo "$PACKAGE" >> /.mat/.current
-            mkdir -p "/.mat/.store/$PACKAGE"
-
-            export PACKAGE
-
-            rpm -ql "$PACKAGE" | grep -v ".build-id" | \
-                xargs -n1 -P"$(("$(nproc --all)"/2))" \
-                bash -c 'store_path "$@"' _
-
-            sed -i "s/^$PACKAGE//" /.mat/.current
-            unset PACKAGE
-        fi
-    }
-
-    rpm -qa | sort > /.mat/pkgs
-    export -f store_package
     export -f store_path
 
-    cat /.mat/pkgs | xargs -n1 -P"$(("$(nproc --all)"/2))" \
-        bash -c 'store_package "$@"' _
+    printf "Storing files by hash...\n"
+    printf "" > files
+    find /{usr,etc} ! -type d -print0 | shuf -z | xargs -0 -n1 -P"$(("$(nproc --all)"**2))" \
+        bash -c 'store_path "$@"' _
 
-    unset -f store_package
     unset -f store_path
-}
-
-hash_store() {
-    hash_dir() {
-        pkg="$1"
-
-        dir_hash="$(find "/.mat/.store/$pkg" -type f -exec sha1sum {} \; | awk '{ print $1 }' | sort | \
-            sha1sum | awk '{ print $1 }')"
-        sed -i "s/^\($pkg\).*$/\1-$dir_hash/" /.mat/pkgs
-    }
-
-    move_dir() {
-        pkg_hash="$1"
-        pkg="$(sed "s/^\(.*\)-.*/\1/" <<< "$@")"
-
-        mv "/.mat/.store/$pkg" "/.mat/.store/$pkg_hash"
-    }
-
-    export -f hash_dir
-    export -f move_dir
-
-    printf "Calculating package hashes...\n"
-
-    cat /.mat/pkgs | grep -v "^filesystem" | \
-        xargs -n1 -P1 \
-        bash -c 'hash_dir "$@"' _
-
-    cat /.mat/pkgs | grep -v "^filesystem" | \
-        xargs -n1 -P"$(("$(nproc --all)"/2))" \
-        bash -c 'move_dir "$@"' _
-
-    unset -f hash_dir
-    unset -f move_dir
-}
-
-verify_store() {
-    verify_package() {
-        pkg="$1"
-        pre_hash="$(sed "s/^.*-\(.*\)/\1/" <<< "$@")"
-        dir_hash="$(find "/.mat/.store/$pkg" -type f -exec sha1sum {} \; | awk '{ print $1 }' | sort | \
-            sha1sum | awk '{ print $1 }')"
-
-        if [[ ! "$pre_hash" == "$dir_hash" ]]; then
-            printf "[Warn] %s has a mismatching hash!\n" "$pkg"
-        fi
-    }
-
-    export -f verify_package
-
-    find /.mat -maxdepth 1 -type f -name ".pkgs*" | xargs cat | sort -u | grep -v "^filesystem" | \
-        xargs -n1 -P"$(("$(nproc --all)"**2))" bash -c 'verify_package "$@"' _
-
-    unset -f verify_package
-}
-
-create_custom_content_pkg() {
-    custom_content="custom_content-$(sha256sum <<< "$RANDOM" | cut -d' ' -f1)"
-    printf "Storing $custom_content...\n"
-    echo "$custom_content" >> /.mat/.current
-    mkdir -p "/.mat/.store/$custom_content/usr"
-    mkdir -p "/.mat/.store/$custom_content/etc"
-
-    cp -l --parents /usr/share/glib-2.0/schemas/*compiled* /.mat/custom_content 2>/dev/null || \
-        rm -rf /.mat/custom_content/usr/share/glib-2.0/schemas/*compiled* && \
-        cp -l --parents /usr/share/glib-2.0/schemas/*compiled* /.mat/custom_content 2>/dev/null || \
-        cp -fax --parents /usr/share/glib-2.0/schemas/*compiled* /.mat/custom_content
-
-    rsync -aHlx --link-dest=../../../custom_content/usr /.mat/custom_content/usr/ "/.mat/.store/$custom_content/usr/"
-    rsync -aHlx --link-dest=../../../custom_content/etc /.mat/custom_content/etc/ "/.mat/.store/$custom_content/etc/"
-
-    read -ra bin_files <<< "$(find "/.mat/.store/$custom_content/usr/bin")"
-    for file_path in "${bin_files[@]}"; do
-        chmod +x "$file_path"
-    done
-
-    read -ra libexec_files <<< "$(find "/.mat/.store/$custom_content/usr/libexec")"
-    for file_path in "${libexec_files[@]}"; do
-        chmod +x "$file_path"
-    done
-
-    echo "$custom_content" >> /.mat/pkgs
-    sed -i "s/^$custom_content//" /.mat/.current
 }

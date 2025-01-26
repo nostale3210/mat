@@ -15,50 +15,46 @@ pull_image() {
 }
 
 update_store() {
-    lock_image_storage u
+    # lock_image_storage u
 
-    if [[ -f /.mat/.current && "$(cat /.mat/.current)" != "" ]]; then
-        lock_root_dir u
-        printf "Cleaning up failed packages...\n"
-        cat /.mat/.current | xargs -I{} -P"$(("$(nproc --all)"/2))" \
-            rm -rf /.mat/.store/{}
-        echo "" > /.mat/.current
-        lock_root_dir l
+    if [[ ! -d .store/deep ]]; then
+        # lock_root_dir u
+        mkdir -p .store/deep
+        # lock_root_dir l
     fi
 
-    if [[ ! -d /.mat/.store ]]; then
-        lock_root_dir u
-        mkdir -p /.mat/.store
-        lock_root_dir l
+    if [[ ! -d .store/surface ]]; then
+        # lock_root_dir u
+        mkdir -p .store/surface
+        # lock_root_dir l
     fi
 
     SOURCE_IMAGE="$1"
     deployment="$2"
 
-    podman create --replace --name mat-tmp "$SOURCE_IMAGE"
-    CMOUNT="$(podman mount mat-tmp)"
+    # podman create --replace --name mat-tmp "$SOURCE_IMAGE"
+    # CMOUNT="$(podman mount mat-tmp)"
 
-    cp -fa "$CMOUNT/.mat/pkgs" "/.mat/.pkgs$deployment"
+    # cp -fa "$CMOUNT/.mat/pkgs" "/.mat/.pkgs$deployment"
+    cp -fa "files" ".$deployment"
 
-    install_package() {
-        package="$1"
-        if [[ ! -d "/.mat/.store/$package" ]]; then
-            printf "Storing package $package...\n"
-            rsync -aHlx "$CMOUNT/.mat/.store/$package" /.mat/.store/ || :
+    install_path() {
+        if [[ ! -f ".store/deep/${path%% *}" ]]; then
+            cp -fa --update=none "${1##* }" ".store/deep/${1%% *}" 2>/dev/null || :
         fi
     }
 
-    export -f install_package
-    export CMOUNT
+    export -f install_path
+    # export CMOUNT
 
-    cat "/.mat/.pkgs$deployment" | grep -v "^filesystem" | xargs -n1 -P"$(("$(nproc --all)"**2))" \
-        bash -c 'install_package "$@"' _
+    cat ".$deployment" | xargs -0 -n1 -P"$(("$(nproc --all)"**2))" \
+        bash -c 'install_path "$@"' _
 
-    unset -f install_package
-    unset CMOUNT
+    unset -f install_path
+    # unset CMOUNT
 
-    podman unmount mat-tmp
-    podman rm mat-tmp
+    # podman unmount mat-tmp
+    # podman rm mat-tmp
 
-    lock_image_storage l
+    # lock_image_storage l
 }

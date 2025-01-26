@@ -1,7 +1,5 @@
-.current
-.pkgs*
-.store
-staging
+.*
 cosign.private
-pkgs
-pkgs*
+files
+custom_content
+staging
