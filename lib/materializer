@@ -3,49 +3,49 @@
 generate_deployment() {
     deployment="$1"
 
-    lock_image_storage u
+    # lock_image_storage u
 
-    install_package() {
-        rsync -aAHlXx --link-dest="../.store/$1" "$PREFIX/.mat/.store/$1/" \
-            "$PREFIX/.mat/staging/" 2>/dev/null || :
+    install_path() {
+        ts="${1##* }" && [[ ! "${ts:0:1}" == "/" ]] && return
+        [[ ! -d ".store/surface/$deployment$(dirname "${1##* }")" ]]  && 
+            mkdir -p ".store/surface/$deployment$(dirname "${1##* }")"
+        link ".store/deep/${1%% *}" ".store/surface/$deployment${1##* }" 2>/dev/null || :
     }
 
-    export -f install_package
+    export -f install_path
+    export deployment
 
     printf "Installing deployment...\n"
-    cat "$PREFIX/.mat/.pkgs$deployment" | grep -v "^filesystem" | xargs -n1 -P"$(("$(nproc --all)"**2))" \
-        bash -c 'install_package "$@"' _
+    cat ".$deployment" | xargs -0 -n1 -P"$(("$(nproc --all)"**2))" \
+        bash -c 'install_path "$@"' _
 
-    unset -f install_package
+    unset -f install_path
 
-    mkdir -p "$PREFIX/.mat/staging/usr/local"
-    cp -rfa "$PREFIX/etc" "$PREFIX/.mat/staging" || :
-    rm "$PREFIX/.mat/staging/etc/resolv.conf"
-    ln -sf "$PREFIX/run/systemd/resolve/stub-resolv.conf" "$PREFIX/.mat/staging/etc/resolv.conf" || :
+    mkdir -p "/usr/local"
+    cp -rfa "/etc" ".store/surface/$deployment" || :
+    rm ".store/surface/$deployment/etc/resolv.conf"
+    ln -sf "/run/systemd/resolve/stub-resolv.conf" \
+        ".store/surface/$deployment/etc/resolv.conf" || :
 
-    chcon -t usr_t "$PREFIX/.mat/staging/usr" &>/dev/null
-    chcon -t usr_t "$PREFIX/.mat/staging/usr/local" &>/dev/null
-    chcon -t etc_t "$PREFIX/.mat/staging/etc" &>/dev/null
+    echo "$deployment" > ".store/surface/$deployment/usr/.mat_dep"
+    echo "$deployment" > ".store/surface/$deployment/usr/.ald_dep"
 
-    echo "$deployment" > "$PREFIX/.mat/staging/usr/.mat_dep"
-    echo "$deployment" > "$PREFIX/.mat/staging/usr/.ald_dep"
-
-    lock_image_storage l
+    # lock_image_storage l
 }
 
 relabel_store() {
     deployment="$1"
 
-    lock_image_storage u
-
-    selinux_policy="$(cat "/.mat/.pkgs$1" | grep "selinux-policy-targeted*" | tail -n1)"
+    # lock_image_storage u
 
     printf "Relabeling deployment %s packages...\n" "$deployment"
 
-    cat "/.mat/.pkgs$1" | grep -v "^filesystem" | xargs -I{} -n1 -P"$(("$(nproc --all)"**2))" \
-        setfiles -r /.mat/.store/{} \
-        "/.mat/.store/$selinux_policy/etc/selinux/targeted/contexts/files/file_contexts" \
-        /.mat/.store/{} &>/dev/null
+    find ".store/surface/$deployment" -mindepth 2 -maxdepth 2 -print0 | sort -zr | \
+        xargs -0 -I{} -P"$(("$(nproc --all)"/2))" setfiles -r ".store/surface/$deployment" \
+        ".store/surface/$deployment/etc/selinux/targeted/contexts/files/file_contexts" {} &>/dev/null
 
-    lock_image_storage l
+    chcon -t usr_t ".store/surface/$deployment/usr" &>/dev/null
+    chcon -t etc_t ".store/surface/$deployment/etc" &>/dev/null
+
+    # lock_image_storage l
 }

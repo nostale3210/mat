@@ -1,5 +1,5 @@
-staging
 files
 cosign.private
-pkgs
-pkgs*
+files
+custom_content
+staging
