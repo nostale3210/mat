@@ -2,12 +2,11 @@
 
 booty_bits() {
     deployment="$1"
-    kver="$(cat "/.mat/.pkgs$deployment" | grep "^kernel-core" | sort -n | head -n1)"
-    cust="$(cat "/.mat/.pkgs$deployment" | grep "^custom_content" | sort -n | head -n1)"
-    new_kernel="$(find /.mat/.store/*"$kver"* -name vmlinuz -type f)"
-    printf "Installing Kernel %s\n" "$new_kernel"
-    new_init="$(find /.mat/.store/*"$cust"* -name initramfs.img -type f)"
-    printf "Installing Initramfs %s\n" "$new_init"
+
+    new_kernel="$(find "/.mat/.store/surface/$deployment/usr/lib/modules" -name vmlinuz -type f)"
+    printf "Installing kernel %s\n" "$new_kernel"
+    new_init="$(find "/.mat/.store/surface/$deployment/usr/lib/modules" -name initramfs.img -type f)"
+    printf "Installing initramfs %s\n" "$new_init"
 
     mkdir -p "/boot/$deployment"
     cp -fa "$new_kernel" "/boot/$deployment" || :

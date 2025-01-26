@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -oue pipefail
 
-for func in lib/*; do
+for func in /usr/lib/mat/*; do
     if [[ -f "$func" ]]; then
         source "$func"
     fi
@@ -12,26 +12,26 @@ CONTAINER_URL="localhost/mat"
 
 if [[ "$@" == *"--init"* ]]; then export PREFIX="${@: -1}"; fi
 
-# if systemd-inhibit --who="mat" --what="idle" sleep 0.1 &>/dev/null && [[ "$(id -u)" == "0" ]]; then
-#     if { systemd-inhibit --list | grep -q mat-rootful-ops ; }; then
-#         :
-#     else
-#         systemd-inhibit --what="idle:sleep:shutdown" --who="mat-rootful-ops" \
-#             --why="Doing important stuff" -- mat "$@"
-#         exit 0
-#     fi
-# fi
-# 
-# if [[ "$(id -u)" == "0" ]]; then
-#     [[ ! -f "$PREFIX/etc/mat/.mat.lock" ]] && \
-#         mkdir -p "$PREFIX/etc/mat" && touch "$PREFIX/etc/mat/.mat.lock"
-# 
-#     exec {MAT_LOCK}<>"$PREFIX/etc/mat/.mat.lock" || \
-#         { printf "Couldn't set lock fd.\n" && exit 1 ; }
-# 
-#     printf "Acquiring lock...\n"
-#     flock -x "$MAT_LOCK" || { printf "Couldn't acquire lock!\n" ; }
-# fi
+if systemd-inhibit --who="mat" --what="idle" sleep 0.01 &>/dev/null && [[ "$(id -u)" == "0" ]]; then
+    if { systemd-inhibit --list | grep -q mat-rootful-ops ; }; then
+        :
+    else
+        systemd-inhibit --what="idle:sleep:shutdown" --who="mat-rootful-ops" \
+            --why="Doing important stuff" -- mat "$@"
+        exit 0
+    fi
+fi
+
+if [[ "$(id -u)" == "0" ]]; then
+    [[ ! -f "$PREFIX/etc/mat/.mat.lock" ]] && \
+        mkdir -p "$PREFIX/etc/mat" && touch "$PREFIX/etc/mat/.mat.lock"
+
+    exec {MAT_LOCK}<>"$PREFIX/etc/mat/.mat.lock" || \
+        { printf "Couldn't set lock fd.\n" && exit 1 ; }
+
+    printf "Acquiring lock...\n"
+    flock -x "$MAT_LOCK" || { printf "Couldn't acquire lock!\n" ; }
+fi
 
 case "$1" in
     unused)
@@ -63,7 +63,6 @@ case "$1" in
         ;;
     itemize)
         populate_store
-        #create_custom_content_pkg
         ;;
     hash)
         hash_store

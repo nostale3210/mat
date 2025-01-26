@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 
 swap_dep() {
-    if [[ ! -d "$PREFIX/.mat/staging" ]]; then
+    deployment="$1"
+    current="$(cat "$PREFIX/usr/.mat_dep")"
+
+    if [[ ! -d "$PREFIX/.mat/.store/surface/$deployment" ]]; then
         printf "No staging tree!\n"
         exit 1
     fi
@@ -10,20 +13,13 @@ swap_dep() {
     lock_root_dir u
     lock_usr u
     
-    exch "$PREFIX/usr" "$PREFIX/.mat/staging/usr"
-    exch "$PREFIX/etc" "$PREFIX/.mat/staging/etc"
+    exch "$PREFIX/usr" "$PREFIX/.mat/.store/surface/$deployment/usr"
+    exch "$PREFIX/etc" "$PREFIX/.mat/.store/surface/$deployment/etc"
+
+    mv "$PREFIX/.mat/.store/surface/$deployment" "$PREFIX/.mat/.store/surface/$current"
 
     lock_usr l
     lock_root_dir l
     lock_image_storage l
     mount -o bind,rw "$PREFIX/usr/local" "$PREFIX/usr/local"
-}
-
-clear_staging() {
-    lock_image_storage u
-
-    printf "Removing stale tree...\n"
-    rm -rf "$PREFIX/.mat/staging"
-
-    lock_image_storage l
 }
